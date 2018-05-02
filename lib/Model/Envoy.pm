@@ -2,7 +2,7 @@ package Model::Envoy;
 
 use Moose::Role;
 
-with 'MooseX::Storage::DBIC';
+with 'Model::Envoy::Storage::DBIC';
 
 sub save {
     my ( $self ) = @_;

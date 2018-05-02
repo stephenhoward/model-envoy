@@ -1,4 +1,4 @@
-package MooseX::Storage::DBIC;
+package Model::Envoy::Storage::DBIC;
 
 use Moose::Role;
 use Scalar::Util 'blessed';
@@ -174,7 +174,7 @@ sub _value_to_db {
 
             return [ map { $self->_value_to_db($_) } @$value ];
         }
-        elsif ( blessed $value && $value->can('does') && $value->does('MooseX::Storage::DBIC') ) {
+        elsif ( blessed $value && $value->can('does') && $value->does('Model::Envoy::Storage::DBIC') ) {
 
             $value->_populate_dbic_result;
             return $value->_dbic_result;
