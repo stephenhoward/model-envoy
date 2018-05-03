@@ -5,7 +5,7 @@ my $build = Module::Build->new(
     license     => 'MIT',
     dist_author       => 'Stephen Howard <stephen@enterity.com>',
     dist_version_from => 'lib/Model/Envoy.pm',
-    dist_abstract     => 'Perl Model layer to sit atop various storage layers',
+    dist_abstract     => 'A Moose Role that can be used to build a model layer that keeps business logic separate from your storage layer.',
     requires    => {
         'perl'        => '5.18.2',
         'Moose'       => '>= 2.2010',

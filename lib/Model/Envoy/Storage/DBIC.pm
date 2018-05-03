@@ -2,9 +2,18 @@ package Model::Envoy::Storage::DBIC;
 
 our $VERSION = '0.1';
 
+=head1 Model::Envoy::Storage::DBIC
+
+A Moose Role that adds a DBIx::Class persistence layer to your Moose class
+
+=head2 Traits
+
+=head3 DBIC
+
+=cut
+
 use Moose::Role;
 use Scalar::Util 'blessed';
-
 
 # The name of the DBIx::Class ResultClass is stored here:
 requires 'dbic';
@@ -22,6 +31,12 @@ has '_dbic_result',
 
         return $self->_schema->resultset( $self->dbic )->new({});
     };
+
+=head2 Methods
+
+=head3 new_from_db()
+
+=cut
 
 sub new_from_db {
     my ( $class, $db_result, $no_rel ) = @_;
@@ -61,6 +76,10 @@ sub new_from_db {
     return $class->new( _dbic_result => $db_result, %$data );
 }
 
+=head3 db_save
+
+=cut
+
 sub db_save {
     my ( $self ) = @_;
 
@@ -91,6 +110,10 @@ sub db_save {
     return $self;
 }
 
+=head3 in_storage()
+
+=cut
+
 sub in_storage {
     my ( $self ) = @_;
 
@@ -119,6 +142,10 @@ sub _db_save_relationship {
         $dbic_result->set_from_related( $name => $value );
     }
 }
+
+=head3 db_delete
+
+=cut
 
 sub db_delete {
     my ( $self ) = @_;

@@ -4,6 +4,10 @@ use Moose::Role;
 
 our $VERSION = '0.1';
 
+=head1 Model::Envoy::Set
+
+=cut
+
 # The parent namespace for your models is stored here:
 requires 'namespace';
 
@@ -15,6 +19,12 @@ has model => (
     required => 1,
 );
 
+=head2 Methods
+
+=head3 m()
+
+=cut
+
 sub m {
 
     my ( $class, $name ) = @_;
@@ -25,6 +35,10 @@ sub m {
 
     return $class->new( model => "$namespace::$name" );
 }
+
+=head3 build()
+
+=cut
 
 sub build {
     my( $self, $params, $no_rel ) = @_;
@@ -51,6 +65,10 @@ sub build {
         die "Cannot coerce a " . ( ref $params ) . " into a " . $self->model;
     }
 }
+
+=head3 fetch()
+
+=cut
 
 sub fetch {
     my $self = shift;
@@ -80,6 +98,10 @@ sub fetch {
     return undef;
 }
 
+=head3 list()
+
+=cut
+
 sub list {
     my $self = shift;
 
@@ -90,6 +112,10 @@ sub list {
         $self->model->_schema->resultset( $self->model->dbic )->search(@_)
     ];
 }
+
+=head3 load_types()
+
+=cut
 
 sub load_types {
     my ( $self, @types ) = @_;

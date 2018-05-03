@@ -4,6 +4,92 @@ use Moose::Role;
 
 our $VERSION = '0.1';
 
+=head1 Model::Envoy
+
+A Moose Role that can be used to build a model layer that keeps business logic separate from your storage layer.
+
+=head2 Synopsis
+
+    package My::Envoy::Widget;
+
+        use Moose;
+        with 'Model::Envoy';
+
+        use My::DB;
+
+        sub dbic { 'My::DB::Result::Widget' }
+
+        my $schema;
+
+        sub _schema {
+            $schema ||= My::DB->db_connect(...);
+        }
+
+        has 'id' => (
+            is => 'ro',
+            isa => 'Num',
+            traits => ['DBIC'],
+            primary_key => 1,
+
+        );
+
+        has 'name' => (
+            is => 'rw',
+            isa => 'Maybe[Str]',
+            traits => ['DBIC'],
+        );
+
+        has 'no_storage' => (
+            is => 'rw',
+            isa => 'Maybe[Str]',
+        );
+
+        has 'parts' => (
+            is => 'rw',
+            isa => 'ArrayRef[My::Envoy::Part]',
+            traits => ['DBIC','Envoy'],
+            rel => 'has_many',
+            coerce => 1,
+        );
+
+    package My::Envoy::Models;
+
+    use Moose;
+    with 'Model::Envoy::Set';
+
+    sub namespace { 'My::Envoy' }
+
+
+    ....then later...
+
+    my $widget = My::Envoy::Models->m('Widget')->build({
+        id => 1
+        name => 'foo',
+        no_storage => 'bar',
+        parts => [
+            {
+                id => 2,
+                name => 'baz',
+            },
+        ],
+    })
+
+
+=head2 Traits
+
+=head3 DBIC
+
+See `Model::Envoy::Storage::DBIC`;
+
+=head3 Envoy
+
+=head2 Methods
+
+=head3 save()
+
+=cut
+
+
 with 'Model::Envoy::Storage::DBIC';
 
 sub save {
@@ -13,6 +99,10 @@ sub save {
 
     return $self;
 }
+
+=head3 update()
+
+=cut
 
 sub update {
     my ( $self, $hashref ) = @_;
@@ -30,6 +120,10 @@ sub update {
     return $self;
 }
 
+=head3 delete()
+
+=cut
+
 sub delete {
     my ( $self ) = @_;
 
@@ -37,6 +131,10 @@ sub delete {
 
     return 1;
 }
+
+=head3 dump()
+
+=cut
 
 sub dump {
     my ( $self ) = @_;
