@@ -2,6 +2,8 @@ package Model::Envoy::Set;
 
 use Moose::Role;
 
+our $VERSION = '0.1';
+
 # The parent namespace for your models is stored here:
 requires 'namespace';
 

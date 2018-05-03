@@ -1,5 +1,7 @@
 package Model::Envoy::Storage::DBIC;
 
+our $VERSION = '0.1';
+
 use Moose::Role;
 use Scalar::Util 'blessed';
 

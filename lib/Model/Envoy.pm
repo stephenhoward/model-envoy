@@ -2,6 +2,8 @@ package Model::Envoy;
 
 use Moose::Role;
 
+our $VERSION = '0.1';
+
 with 'Model::Envoy::Storage::DBIC';
 
 sub save {
