@@ -49,7 +49,6 @@ A Moose Role that can be used to build a model layer that keeps business logic s
             isa => 'ArrayRef[My::Envoy::Part]',
             traits => ['DBIC','Envoy'],
             rel => 'has_many',
-            coerce => 1,
         );
 
     package My::Envoy::Models;
@@ -82,6 +81,11 @@ A Moose Role that can be used to build a model layer that keeps business logic s
 See `Model::Envoy::Storage::DBIC`;
 
 =head3 Envoy
+
+This trait is handy for class attributes that represent other Model::Envoy
+enabled classes (or arrays of them).  It will allow you to pass in hashrefs
+(or arrays of hashrefs) to those attributes and have them automagically elevated
+into an instance of the intended class.
 
 =head2 Methods
 
