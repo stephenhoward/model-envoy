@@ -91,6 +91,8 @@ into an instance of the intended class.
 
 =head3 save()
 
+Save the instance to your persistent storage layer.
+
 =cut
 
 
@@ -104,7 +106,9 @@ sub save {
     return $self;
 }
 
-=head3 update()
+=head3 update($hashref)
+
+Given a supplied hashref of attributes, bulk update the attributes of your instance object.
 
 =cut
 
@@ -126,6 +130,8 @@ sub update {
 
 =head3 delete()
 
+Remove the instance from your persistent storage layer.
+
 =cut
 
 sub delete {
@@ -137,6 +143,8 @@ sub delete {
 }
 
 =head3 dump()
+
+Provide an unblessed copy of the datastructure of your instance object.
 
 =cut
 
