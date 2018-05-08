@@ -310,7 +310,7 @@ has primary_key => (
     predicate => 'is_primary_key'
 );
 
-package Moose::Meta::Attribute::Custom::Trait::DBIC;
+package Moose::Meta::Attribute::Custom::Trait::EDBIC;
     sub register_implementation { 
         'MooseX::Meta::Attribute::Trait::DBIC'
     };
