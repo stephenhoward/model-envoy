@@ -1,6 +1,6 @@
 package Model::Envoy::Storage::DBIC;
 
-our $VERSION = '0.1';
+our $VERSION = '0.1.1';
 
 =head1 Model::Envoy::Storage::DBIC
 
