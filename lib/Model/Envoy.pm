@@ -1,8 +1,54 @@
 package Model::Envoy;
 
-use Moose::Role;
+use MooseX::Role::Parameterized;
+use Module::Runtime 'use_module';
+use MooseX::ClassAttribute;
 
 our $VERSION = '0.1.1';
+
+parameter storage => (
+    isa      => 'HashRef',
+    required => 1,
+);
+
+my $abs_module_prefix = qr/^\+/;
+
+role {
+
+    my $storage = shift->storage;
+    my %plugins;
+
+    while ( my ( $package, $config ) = each %$storage ) {
+
+        my $role = $package =~ $abs_module_prefix
+            ? do { $package =~ s/$abs_module_prefix//; $package }
+            : 'Model::Envoy::Storage::' . $package;
+
+            use_module( $role );
+
+            $plugins{$role} = $config;
+    }
+
+    has _storage => (
+        isa => 'HashRef',
+        is  => 'ro',
+        default => sub { \%plugins },
+    );
+
+    class_has storage => (
+        isa => 'HashRef',
+        is  => 'ro',
+        default => sub { [ keys %plugins ] },
+    );
+};
+
+sub get_storage {
+    my ( $self, $package ) = @_;
+
+    return defined $self->_storage->{$package}
+        ? $self->_storage->{$package}
+        : undef;
+}
 
 =head1 Model::Envoy
 
@@ -13,17 +59,18 @@ A Moose Role that can be used to build a model layer that keeps business logic s
     package My::Envoy::Widget;
 
         use Moose;
-        with 'Model::Envoy';
+        with 'Model::Envoy' => {
+            storage => {
+                'DBIC' => {
+                    schema => My::Schema->connect(...)
+                }
+            }
+        };
 
         use My::DB;
 
         sub dbic { 'My::DB::Result::Widget' }
 
-        my $schema;
-
-        sub _schema {
-            $schema ||= My::DB->db_connect(...);
-        }
 
         has 'id' => (
             is => 'ro',
@@ -96,12 +143,10 @@ Save the instance to your persistent storage layer.
 =cut
 
 
-with 'Model::Envoy::Storage::DBIC';
-
 sub save {
-    my ( $self ) = @_;
+    my $self = shift;
 
-    $self->db_save;
+    $self->_dispatch('save', @_ );
 
     return $self;
 }
@@ -137,7 +182,7 @@ Remove the instance from your persistent storage layer.
 sub delete {
     my ( $self ) = @_;
 
-    $self->db_delete();
+    $self->_dispatch('delete', @_ );
 
     return 1;
 }
@@ -177,6 +222,18 @@ sub _get_all_attributes {
     my ( $self ) = @_;
 
     return grep { $_->name !~ /^_/ } $self->meta->get_all_attributes;
+}
+
+sub _dispatch {
+    my ( $self, $method, @params ) = @_;
+
+    while ( my ( $package, $instance ) = each %{$self->_storage} ) {
+        if ( ref $instance eq 'HASH' ) {
+            $instance = $self->_storage->{$package} = $package->new( %$instance, model => $self );
+        }
+
+        $instance->$method();
+    }
 }
 
 package Model::Envoy::Meta::Attribute::Trait::Envoy;

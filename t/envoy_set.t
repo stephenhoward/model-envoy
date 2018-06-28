@@ -1,15 +1,13 @@
 use lib 't/lib';
 
-{
-    package My::Envoy::Models;
+package My::Envoy::Models;
 
-    use Moose;
-    with 'Model::Envoy::Set';
+use Moose;
+with 'Model::Envoy::Set' => { namespace => 'My::Envoy' };
 
-    sub namespace { 'My::Envoy' }
+1;
 
-    1;
-}
+package main;
 
 unlink '/tmp/envoy';
 
@@ -20,12 +18,13 @@ use My::Envoy::Part;
 use My::DB::Result::Widget;
 use Data::Dumper; 
 
-My::Envoy::Widget->_schema->storage->dbh->do( My::DB::Result::Widget->sql );
-My::Envoy::Widget->_schema->storage->dbh->do( My::DB::Result::Part->sql );
+my $schema = My::DB->db_connect('/tmp/envoy');
+$schema->storage->dbh->do( My::DB::Result::Widget->sql );
+$schema->storage->dbh->do( My::DB::Result::Part->sql );
 
 my $set = My::Envoy::Models->m('Widget');
 
-is( $set->model, 'My::Envoy::Widget', 'get set by model name');
+is( $set->model_class, 'My::Envoy::Widget', 'get set by model name');
 
 my $params = {
     id => 1,

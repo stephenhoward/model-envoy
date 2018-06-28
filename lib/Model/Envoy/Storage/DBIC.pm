@@ -54,21 +54,36 @@ There are two methods you will need to implement in a class that uses this role:
 This should return the name of the DBIx::Class ResultClass that your Model
 uses for database storage.
 
-=head3 _schema()
+=head3 schema()
 
 This must return a DBIx::Class schema object for other methods to use when
 communicating with your database.
 
 =cut
 
-use Moose::Role;
+use Moose;
 use Scalar::Util 'blessed';
+use Moose::Util::TypeConstraints 'class_type';
 
-# The name of the DBIx::Class ResultClass is stored here:
-requires 'dbic';
+class_type 'DBIx::Class::Schema';
 
-# Model needs to provide its own connection to the database:
-requires '_schema';
+has 'model' => (
+    is => 'rw',
+    does => 'Model::Envoy',
+    required => 1,
+    weak_ref => 1,
+);
+
+has 'schema' => (
+    is       => 'rw',
+    isa      => 'CodeRef|DBIx::Class::Schema',
+    required => 1,
+    trigger  => sub {
+        my ( $self, $schema ) = @_;
+
+        $self->schema( $schema->() ) if ref $schema eq 'CODE';
+    },
+);
 
 # The actual ResultClass for the model object is stored here:
 has '_dbic_result',
@@ -78,7 +93,7 @@ has '_dbic_result',
     default => sub {
         my ( $self ) = @_;
 
-        return $self->_schema->resultset( $self->dbic )->new({});
+        return $self->schema->resultset( $self->model->dbic )->new({});
     };
 
 =head2 Methods
@@ -135,7 +150,7 @@ sub new_from_db {
     return $class->new( _dbic_result => $db_result, %$data );
 }
 
-=head3 db_save()
+=head3 save()
 
 Performs either an insert or an update for the model, depending on whether
 there is already a record for it in the database.
@@ -144,12 +159,12 @@ Returns the calling object for convenient chaining.
 
 =cut
 
-sub db_save {
+sub save {
     my ( $self ) = @_;
 
     my $dbic_result = $self->_dbic_result;
 
-    $self->_schema->txn_do( sub {
+    $self->schema->txn_do( sub {
 
         # First update/insert non-relationships
         $self->_populate_dbic_result;
@@ -181,7 +196,7 @@ sub _db_save_relationship {
 
     my $name  = $attr->name;
     my $type  = $attr->meta->get_attribute('rel')->get_value($attr);
-    my $value = $self->_value_to_db( $self->$name );
+    my $value = $self->_value_to_db( $self->model->$name );
 
     if ( $type eq 'many_to_many' ) {
         my $setter = 'set_' . $name;
@@ -206,7 +221,7 @@ Returns nothing.
 
 =cut
 
-sub db_delete {
+sub delete {
     my ( $self ) = @_;
 
     if ( $self->_dbic_result->in_storage ) {
@@ -236,7 +251,7 @@ sub _dbic_attrs {
 
     return [
         grep { $_->does('DBIC') }
-        $self->meta->get_all_attributes
+        $self->model->meta->get_all_attributes
     ];
 }
 
@@ -245,7 +260,7 @@ sub _dbic_columns {
 
     return [
         grep { $_->does('DBIC') && ! $_->is_relationship }
-        $self->meta->get_all_attributes
+        $self->model->meta->get_all_attributes
     ];
 }
 
@@ -254,7 +269,7 @@ sub _dbic_relationships {
 
     return [
         grep { $_->does('DBIC') && $_->is_relationship }
-        $self->meta->get_all_attributes
+        $self->model->meta->get_all_attributes
     ];
 }
 
@@ -264,7 +279,7 @@ sub _populate_dbic_result {
     for my $attr ( @{$self->_dbic_columns} ) {
 
         my $name  = $attr->name;
-        my $value = $self->_value_to_db( $self->$name );
+        my $value = $self->_value_to_db( $self->model->$name );
 
         $self->_dbic_result->$name( $value );
     }
@@ -277,10 +292,12 @@ sub _value_to_db {
 
             return [ map { $self->_value_to_db($_) } @$value ];
         }
-        elsif ( blessed $value && $value->can('does') && $value->does('Model::Envoy::Storage::DBIC') ) {
+        elsif ( blessed $value && $value->can('does') && $value->does('Model::Envoy') ) {
 
-            $value->_populate_dbic_result;
-            return $value->_dbic_result;
+            my $dbic = $value->get_storage(ref $self);
+
+            $dbic->_populate_dbic_result;
+            return $dbic->_dbic_result;
         }
 
         return $value;

@@ -1,17 +1,10 @@
 package My::Envoy::Widget;
 
     use Moose;
-    with 'Model::Envoy';
 
-    use My::DB;
+    extends 'My::Envoy::Base';
 
     sub dbic { 'My::DB::Result::Widget' }
-
-    my $schema;
-
-    sub _schema {
-        $schema ||= My::DB->db_connect('/tmp/envoy');
-    }
 
     has 'id' => (
         is => 'ro',

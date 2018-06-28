@@ -7,8 +7,9 @@ use Test::More;
 use My::Envoy::Widget;
 use My::Envoy::Part;
 
-My::Envoy::Widget->_schema->storage->dbh->do( My::DB::Result::Widget->sql );
-My::Envoy::Widget->_schema->storage->dbh->do( My::DB::Result::Part->sql );
+my $schema = My::DB->db_connect('/tmp/envoy');
+$schema->storage->dbh->do( My::DB::Result::Widget->sql );
+$schema->storage->dbh->do( My::DB::Result::Part->sql );
 
 my $test = new My::Envoy::Widget(
     id         => 1,

@@ -1,6 +1,9 @@
 package Model::Envoy::Set;
 
-use Moose::Role;
+use MooseX::Role::Parameterized;
+use Module::Runtime 'use_module';
+use Moose::Util::TypeConstraints;
+use MooseX::ClassAttribute;
 
 our $VERSION = '0.1.1';
 
@@ -22,16 +25,28 @@ namespace method would return 'My::Model'.
 
 =cut
 
-# The parent namespace for your models is stored here:
-requires 'namespace';
+parameter namespace => (
+    isa      => 'Str',
+    required => 1,
+);
 
-use Moose::Util::TypeConstraints;
+role {
 
-has model => (
+    my $namespace = shift->namespace;
+
+    class_has _namespace => (
+        isa => 'Str',
+        is  => 'rw',
+        default => sub { $namespace },
+    );
+};
+
+has model_class => (
     is => 'rw',
     isa => 'Str',
     required => 1,
 );
+
 
 =head2 Methods
 
@@ -44,14 +59,13 @@ Returns an Envoy::Set of the specified $type. So for a class My::Model::Foo
 =cut
 
 sub m {
-
     my ( $class, $name ) = @_;
 
-    my $namespace = $class->namespace;
+    my $namespace = $class->_namespace;
 
     $name =~ s/^$namespace\:://;
 
-    return $class->new( model => "$namespace\::$name" );
+    return $class->new( model_class => "$namespace\::$name" );
 }
 
 =head3 build(%params)
@@ -69,25 +83,25 @@ sub build {
     my( $self, $params, $no_rel ) = @_;
 
     if ( ! ref $params ) {
-        die "Cannot build a ". $self->model ." from '$params'";
+        die "Cannot build a ". $self->model_class ." from '$params'";
     }
     elsif( ref $params eq 'HASH' ) {
-        return $self->model->new(%$params);
+        return $self->model_class->new(%$params);
     }
     elsif( ref $params eq 'ARRAY' ) {
-        die "Cannot build a ". $self->model ." from an Array Ref";
+        die "Cannot build a ". $self->model_class ." from an Array Ref";
     }
-    elsif( blessed $params && $params->isa( $self->model ) ) {
+    elsif( blessed $params && $params->isa( $self->model_class ) ) {
         return $params;
     }
     elsif( blessed $params && $params->isa( 'DBIx::Class::Core' ) ) {
 
         my $type = ( ( ref $params ) =~ / ( [^:]+ ) $ /x )[0];
 
-        return $self->m( $type )->model->new_from_db($params, $no_rel);
+        return $self->m( $type )->model_class->new_from_db($params, $no_rel);
     }
     else {
-        die "Cannot coerce a " . ( ref $params ) . " into a " . $self->model;
+        die "Cannot coerce a " . ( ref $params ) . " into a " . $self->model_class;
     }
 }
 
@@ -118,14 +132,28 @@ sub fetch {
         $params{$key} = $value;
     }
 
-    if ( my $result = ($self->model->_schema->resultset( $self->model->dbic )
+    if ( my $result = ($self->model_class->_schema->resultset( $self->model->dbic )
         ->search(\%params))[0] ) {
 
-        return $self->model->new_from_db($result);
+        return $self->model_class->new_from_db($result);
     }
 
     return undef;
 }
+
+sub _dispatch {
+    my ( $self, $method, @params ) = @_;
+
+    while ( my ( $package, $instance ) = each %{$self->_storage} ) {
+        warn "dispatch $method to $package";
+        if ( ref $instance eq 'HASH' ) {
+            $instance = $self->_storage->{$package} = $package->new( %$instance, model => $self );
+        }
+
+        $instance->$method();
+    }
+}
+
 
 =head3 list(%params)
 
@@ -144,9 +172,9 @@ sub list {
 
     return [
         map {
-            $self->model->new_from_db($_);
+            $self->model_class->new_from_db($_);
         }
-        $self->model->_schema->resultset( $self->model->dbic )->search(@_)
+        $self->model_class->_schema->resultset( $self->model_class->dbic )->search(@_)
     ];
 }
 
@@ -162,14 +190,14 @@ for use with $set->m().  Call load_types() at the start of your program instead:
 sub load_types {
     my ( $self, @types ) = @_;
 
-    my $namespace = $self->namespace;
+    my $namespace = $self->_namespace;
 
     foreach my $type ( @types ) {
 
         die "invalid type name '$type'" unless $type =~ /^[a-z]+$/i;
 
-        eval "use $namespace\::$type";
-        die "Could not load model type '$type': $@" if $@;
+        use_module("$namespace\::$type")
+            or die "Could not load model type '$type'";
     }
 }
 

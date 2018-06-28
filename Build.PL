@@ -10,6 +10,8 @@ my $build = Module::Build->new(
         'perl'        => '5.18.2',
         'Moose'       => '>= 2.2010',
         'DBIx::Class' => '>= 0.082840',
+        'MooseX::Role::Parameterized' => '>=1.10',
+        'MooseX::ClassAttribute'      => '>=0.29',
     },
     configure_requires => {
       'Module::Build' => '>= 0.4211',
