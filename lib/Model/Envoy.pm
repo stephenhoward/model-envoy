@@ -11,6 +11,12 @@ parameter storage => (
     required => 1,
 );
 
+# class_has storage => (
+#     isa => 'HashRef',
+#     is  => 'rw',
+#     default => sub { {} },
+# );
+
 my $abs_module_prefix = qr/^\+/;
 
 role {
@@ -18,7 +24,7 @@ role {
     my $storage = shift->storage;
     my %plugins;
 
-    while ( my ( $package, $config ) = each %$storage ) {
+    while ( my ( $package, $conf ) = each %$storage ) {
 
         my $role = $package =~ $abs_module_prefix
             ? do { $package =~ s/$abs_module_prefix//; $package }
@@ -26,28 +32,31 @@ role {
 
             use_module( $role );
 
-            $plugins{$role} = $config;
+            $plugins{$role} = $conf;
     }
 
     has _storage => (
         isa => 'HashRef',
         is  => 'ro',
-        default => sub { \%plugins },
-    );
+        default => sub {
 
-    class_has storage => (
-        isa => 'HashRef',
-        is  => 'ro',
-        default => sub { [ keys %plugins ] },
+            my $self = shift;
+
+            $self->meta->add_class_attribute( 'storage',
+                is => 'rw',
+                isa => 'HashRef',
+            );
+            $self->meta->set_class_attribute_value( 'storage', \%plugins );
+
+            return { map { $_ => undef } keys %plugins }
+        },
     );
 };
 
 sub get_storage {
     my ( $self, $package ) = @_;
 
-    return defined $self->_storage->{$package}
-        ? $self->_storage->{$package}
-        : undef;
+    return $self->_storage_instance($package);
 }
 
 =head1 Model::Envoy
@@ -135,6 +144,31 @@ enabled classes (or arrays of them).  It will allow you to pass in hashrefs
 into an instance of the intended class.
 
 =head2 Methods
+
+=cut
+
+sub build {
+    my( $class, $params, $no_rel ) = @_;
+
+    if ( ! ref $params ) {
+        die "Cannot build a ". $class ." from '$params'";
+    }
+    elsif( ref $params eq 'HASH' ) {
+        return $class->new(%$params);
+    }
+    elsif( ref $params eq 'ARRAY' ) {
+        die "Cannot build a ". $class ." from an Array Ref";
+    }
+    elsif( blessed $params && $params->isa( $class ) ) {
+        return $params;
+    }
+    elsif( my $model = $class->_dispatch('build', $class, $params,$no_rel ) ) {
+        return $model;
+    }
+    else {
+        die "Cannot coerce a " . ( ref $params ) . " into a " . $class;
+    }
+}
 
 =head3 save()
 
@@ -227,13 +261,27 @@ sub _get_all_attributes {
 sub _dispatch {
     my ( $self, $method, @params ) = @_;
 
-    while ( my ( $package, $instance ) = each %{$self->_storage} ) {
-        if ( ref $instance eq 'HASH' ) {
-            $instance = $self->_storage->{$package} = $package->new( %$instance, model => $self );
-        }
-
-        $instance->$method();
+    if ( ! ref $self ) {
+        die "need to build class version of dispatch";        
     }
+
+    for my $package ( keys %{$self->_storage} ) {
+        $self->_storage_instance($package)->$method();
+    }
+}
+
+sub _storage_instance {
+    my ( $self, $package ) = @_;
+
+    if ( ! $self->_storage->{$package} ) {
+            my $conf = $self->meta->get_class_attribute_value('storage')->{$package};
+            if ( ! $conf->{_configured} ) {
+                $package->configure($conf);
+            }
+            $self->_storage->{$package} = $package->new( %$conf, model => $self );
+    }
+
+    return $self->_storage->{$package};
 }
 
 package Model::Envoy::Meta::Attribute::Trait::Envoy;
@@ -293,7 +341,7 @@ sub _coerce_array {
 
         coerce   "Array_of_$type",
             from "Array_of_Object",
-            via  { [ map { $class->new_from_db($_) } @{$_} ] },
+            via  { [ map { $class->build($_) } @{$_} ] },
 
             from 'Array_of_HashRef',
             via  { [ map { $class->new($_) } @{$_} ] };
@@ -313,7 +361,7 @@ sub _coerce_maybe {
 
         coerce   "Maybe_$type",
             from 'Object',
-            via  { $class->new_from_db($_) },
+            via  { $class->build($_) },
 
             from 'HashRef',
             via { $class->new($_) };
@@ -328,7 +376,7 @@ sub _coerce_class {
 
     coerce   $class,
         from 'Object',
-        via  { $class->new_from_db($_) },
+        via  { $class->build($_) },
 
         from 'HashRef',
         via { $class->new($_) };

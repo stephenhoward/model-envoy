@@ -63,26 +63,13 @@ communicating with your database.
 
 use Moose;
 use Scalar::Util 'blessed';
-use Moose::Util::TypeConstraints 'class_type';
+use MooseX::ClassAttribute;
 
-class_type 'DBIx::Class::Schema';
+extends 'Model::Envoy::Storage';
 
-has 'model' => (
-    is => 'rw',
-    does => 'Model::Envoy',
-    required => 1,
-    weak_ref => 1,
-);
-
-has 'schema' => (
+class_has 'schema' => (
     is       => 'rw',
-    isa      => 'CodeRef|DBIx::Class::Schema',
-    required => 1,
-    trigger  => sub {
-        my ( $self, $schema ) = @_;
-
-        $self->schema( $schema->() ) if ref $schema eq 'CODE';
-    },
+    isa      => 'DBIx::Class::Schema',
 );
 
 # The actual ResultClass for the model object is stored here:
@@ -98,7 +85,21 @@ has '_dbic_result',
 
 =head2 Methods
 
-=head3 new_from_db( $dbic_result, [$no_rel] )
+=head3 configure(\%conf)
+
+=cut
+
+sub configure {
+    my ( $class, $conf ) = @_;
+
+    $class->schema(
+        ref $conf->{schema} eq 'CODE' ? $conf->{schema}->() : $conf->{schema}
+    );
+
+    $conf->{_configured} = 1;
+}
+
+=head3 build( $dbic_result, [$no_rel] )
 
 Takes a DBIx::Class result object and, if it's class matches your class's dbic()
 method, attempts to build a new instance of your class based on the $dbic_result
@@ -112,13 +113,13 @@ Returns the class instance if successful.
 
 =cut
 
-sub new_from_db {
-    my ( $class, $db_result, $no_rel ) = @_;
+sub build {
+    my ( $class, $model_class, $db_result, $no_rel ) = @_;
 
-    return undef unless $db_result;
-
-    die "cannot create a $class from a $db_result"
-        unless blessed $db_result && $db_result->isa( $class->dbic );
+    return undef
+        unless $db_result
+            && blessed $db_result
+            && $db_result->isa( $model_class->dbic );
 
     my $data  = {};
 
@@ -130,7 +131,7 @@ sub new_from_db {
 
         if ( blessed $db_result->$attr && $db_result->$attr->isa('DBIx::Class::ResultSet') ) {
 
-            my $attribute  = $class->meta->find_attribute_by_name($attr);
+            my $attribute  = $model_class->meta->find_attribute_by_name($attr);
             my $class_attr = $attribute->meta->find_attribute_by_name('moose_class');
             my $factory    = $class_attr ? $class_attr->get_value($attribute) : undef;
 
@@ -138,7 +139,7 @@ sub new_from_db {
 
             if ( $factory ) {
 
-                $data->{$attr} = [ map { $factory->new_from_db( $_, 1 ) } $db_result->$attr ];
+                $data->{$attr} = [ map { $factory->build( $_, 1 ) } $db_result->$attr ];
             }
         }
         else {
@@ -147,7 +148,10 @@ sub new_from_db {
 
     }
 
-    return $class->new( _dbic_result => $db_result, %$data );
+    my $model = $model_class->new( %$data );
+    $model->get_storage( __PACKAGE__ )->_dbic_result( $db_result );
+
+    return $model;
 }
 
 =head3 save()

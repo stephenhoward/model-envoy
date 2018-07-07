@@ -8,10 +8,10 @@ package My::Envoy::Base;
     with 'Model::Envoy' => { storage => {
         'DBIC' => {
             schema => sub {
-                warn "CONNECTING";
                 $schema ||= My::DB->db_connect('/tmp/envoy');
             }
-        }
+        },
+        'Memory' => {},
     } };
 
 1;

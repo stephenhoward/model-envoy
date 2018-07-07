@@ -1,17 +1,9 @@
 package My::Part;
 
     use Moose;
-    with 'Model::Envoy::Storage::DBIC';
-
-    use My::DB;
+    extends 'My::BasePart';
 
     sub dbic { 'My::DB::Result::Part' }
-
-    my $schema;
-
-    sub _schema {
-        $schema ||= My::DB->db_connect('/tmp/dbic');
-    }
 
     has 'id' => (
         is => 'ro',

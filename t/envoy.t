@@ -56,6 +56,8 @@ subtest "Updating a Model" => sub {
     isa_ok( $test->parts->[0], 'My::Envoy::Part', "Related Model" );
     is( $test->parts->[0]->id, 3, "Related Model id" );
     is( $test->parts->[1]->name, 'buzz', "Related Model name" );
+
+    $test->save;
 };
 
 $test->delete;

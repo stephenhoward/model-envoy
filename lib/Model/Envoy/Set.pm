@@ -68,7 +68,7 @@ sub m {
     return $class->new( model_class => "$namespace\::$name" );
 }
 
-=head3 build(%params)
+=head3 build(\%params)
 
 Create a new instance of the Model::Envoy based class referenced by the set:
 
@@ -81,6 +81,8 @@ Create a new instance of the Model::Envoy based class referenced by the set:
 
 sub build {
     my( $self, $params, $no_rel ) = @_;
+
+    return $self->model_class->build($params,$no_rel);
 
     if ( ! ref $params ) {
         die "Cannot build a ". $self->model_class ." from '$params'";
