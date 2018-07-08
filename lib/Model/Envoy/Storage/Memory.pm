@@ -57,7 +57,7 @@ extends 'Model::Envoy::Storage';
 class_has 'store' => (
     is       => 'rw',
     isa      => 'DBIx::Class::Schema',
-    default  => sub { }
+    default  => sub { {} },
 );
 
 =head2 Methods

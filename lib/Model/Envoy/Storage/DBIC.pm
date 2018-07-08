@@ -123,9 +123,9 @@ sub build {
 
     my $data  = {};
 
-    my %relationships = map { $_->name => 1 } @{$class->_dbic_relationships};
+    my %relationships = map { $_->name => 1 } @{$class->_dbic_relationships($model_class)};
 
-    foreach my $attr ( grep { defined $db_result->$_ } map { $_->name } @{$class->_dbic_attrs} ) {
+    foreach my $attr ( grep { defined $db_result->$_ } map { $_->name } @{$class->_dbic_attrs($model_class)} ) {
 
         next if $no_rel && exists $relationships{$attr};
 
@@ -251,29 +251,35 @@ sub in_storage {
 }
 
 sub _dbic_attrs {
-    my ( $self ) = @_;
+    my ( $self, $model ) = @_;
+
+    $model //= $self->model;
 
     return [
         grep { $_->does('DBIC') }
-        $self->model->meta->get_all_attributes
+        $model->meta->get_all_attributes
     ];
 }
 
 sub _dbic_columns {
-    my ( $self ) = @_;
+    my ( $self, $model ) = @_;
+
+    $model //= $self->model;
 
     return [
         grep { $_->does('DBIC') && ! $_->is_relationship }
-        $self->model->meta->get_all_attributes
+        $model->meta->get_all_attributes
     ];
 }
 
 sub _dbic_relationships {
-    my ( $self ) = @_;
+    my ( $self, $model ) = @_;
+
+    $model //= $self->model;
 
     return [
         grep { $_->does('DBIC') && $_->is_relationship }
-        $self->model->meta->get_all_attributes
+        $model->meta->get_all_attributes
     ];
 }
 

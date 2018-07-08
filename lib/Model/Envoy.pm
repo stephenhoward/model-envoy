@@ -3,6 +3,7 @@ package Model::Envoy;
 use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use MooseX::ClassAttribute;
+use List::AllUtils 'first_result';
 
 our $VERSION = '0.1.1';
 
@@ -151,6 +152,9 @@ sub build {
     my( $class, $params, $no_rel ) = @_;
 
     if ( ! ref $params ) {
+
+        return undef unless defined $params;
+
         die "Cannot build a ". $class ." from '$params'";
     }
     elsif( ref $params eq 'HASH' ) {
@@ -162,7 +166,7 @@ sub build {
     elsif( blessed $params && $params->isa( $class ) ) {
         return $params;
     }
-    elsif( my $model = $class->_dispatch('build', $class, $params,$no_rel ) ) {
+    elsif( my $model = $class->_dispatch('build', $params, $no_rel ) ) {
         return $model;
     }
     else {
@@ -261,13 +265,19 @@ sub _get_all_attributes {
 sub _dispatch {
     my ( $self, $method, @params ) = @_;
 
-    if ( ! ref $self ) {
-        die "need to build class version of dispatch";        
-    }
+    return $self->_class_dispatch($method,@params) unless ref $self;
 
     for my $package ( keys %{$self->_storage} ) {
         $self->_storage_instance($package)->$method();
     }
+}
+
+sub _class_dispatch {
+    my ( $self, $method, @params ) = @_;
+
+    return
+        first_result { $_->$method( $self, @params ) }
+        keys %{$self->meta->get_class_attribute_value('storage')}
 }
 
 sub _storage_instance {

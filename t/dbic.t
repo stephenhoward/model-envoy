@@ -73,8 +73,8 @@ subtest 'Model from DB Result' => sub {
     isa_ok( $db_test, 'My::DB::Result::Widget' );
 
     my $test2 = My::Envoy::Widget->build($db_test);
-note 'ok so far';
 
+    isa_ok( $test2, 'My::Envoy::Widget');
     is( My::Envoy::Widget->build(),undef);
     is( $test2->id, 3 );
     is( $test2->name, 'baz' );
