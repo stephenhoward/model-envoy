@@ -3,7 +3,6 @@ package Model::Envoy::Set;
 use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use Moose::Util::TypeConstraints;
-use MooseX::ClassAttribute;
 
 our $VERSION = '0.1.1';
 
@@ -34,11 +33,11 @@ role {
 
     my $namespace = shift->namespace;
 
-    class_has _namespace => (
-        isa => 'Str',
-        is  => 'rw',
-        default => sub { $namespace },
-    );
+warn $namespace;
+
+    method '_namespace' => sub {
+        $namespace;
+    };
 };
 
 has model_class => (
@@ -117,45 +116,10 @@ Retrieve an object from storage
 
 sub fetch {
     my $self = shift;
-    my %params;
 
     return undef unless @_;
-
-    if ( @_ == 1 ) {
-
-        my ( $id ) = @_;
-
-        $params{id} = $id;
-    }
-    else {
-
-        my ( $key, $value ) = @_;
-
-        $params{$key} = $value;
-    }
-
-    if ( my $result = ($self->model_class->_schema->resultset( $self->model->dbic )
-        ->search(\%params))[0] ) {
-
-        return $self->model_class->new_from_db($result);
-    }
-
-    return undef;
+    return $self->model_class->_dispatch('fetch', @_ );
 }
-
-sub _dispatch {
-    my ( $self, $method, @params ) = @_;
-
-    while ( my ( $package, $instance ) = each %{$self->_storage} ) {
-        warn "dispatch $method to $package";
-        if ( ref $instance eq 'HASH' ) {
-            $instance = $self->_storage->{$package} = $package->new( %$instance, model => $self );
-        }
-
-        $instance->$method();
-    }
-}
-
 
 =head3 list(%params)
 
@@ -172,12 +136,8 @@ Query storage and return a list of objects that matched the query
 sub list {
     my $self = shift;
 
-    return [
-        map {
-            $self->model_class->new_from_db($_);
-        }
-        $self->model_class->_schema->resultset( $self->model_class->dbic )->search(@_)
-    ];
+    return $self->model_class->_dispatch('list', @_ );
+
 }
 
 =head3 load_types(@names)

@@ -2,7 +2,6 @@ package Model::Envoy;
 
 use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
-use MooseX::ClassAttribute;
 use List::AllUtils 'first_result';
 
 our $VERSION = '0.1.1';
@@ -11,12 +10,6 @@ parameter storage => (
     isa      => 'HashRef',
     required => 1,
 );
-
-# class_has storage => (
-#     isa => 'HashRef',
-#     is  => 'rw',
-#     default => sub { {} },
-# );
 
 my $abs_module_prefix = qr/^\+/;
 
@@ -43,15 +36,14 @@ role {
 
             my $self = shift;
 
-            $self->meta->add_class_attribute( 'storage',
-                is => 'rw',
-                isa => 'HashRef',
-            );
-            $self->meta->set_class_attribute_value( 'storage', \%plugins );
-
             return { map { $_ => undef } keys %plugins }
         },
     );
+
+    method 'storage_plugins' => sub {
+
+        \%plugins;
+    };
 };
 
 sub get_storage {
@@ -277,14 +269,14 @@ sub _class_dispatch {
 
     return
         first_result { $_->$method( $self, @params ) }
-        keys %{$self->meta->get_class_attribute_value('storage')}
+        keys %{$self->storage_plugins};
 }
 
 sub _storage_instance {
     my ( $self, $package ) = @_;
 
     if ( ! $self->_storage->{$package} ) {
-            my $conf = $self->meta->get_class_attribute_value('storage')->{$package};
+            my $conf = $self->storage_plugins->{$package};
             if ( ! $conf->{_configured} ) {
                 $package->configure($conf);
             }

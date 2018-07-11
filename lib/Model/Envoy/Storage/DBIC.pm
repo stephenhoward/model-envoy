@@ -154,6 +154,45 @@ sub build {
     return $model;
 }
 
+sub fetch {
+    my $self        = shift;
+    my $model_class = shift;
+    my %params;
+
+    return undef unless @_;
+
+    if ( @_ == 1 ) {
+
+        my ( $id ) = @_;
+
+        $params{id} = $id;
+    }
+    else {
+
+        my ( $key, $value ) = @_;
+
+        $params{$key} = $value;
+    }
+
+    if ( my $result = ($self->schema->resultset( $self->model->dbic )
+        ->search(\%params))[0] ) {
+
+        return $model_class->new_from_db($result);
+    }
+
+    return undef;
+}
+
+sub list {
+    my $self = shift;
+    my $model_class = shift;
+
+    return [
+        map { $model_class->new_from_db($_) }
+            $self->schema->resultset( $self->model_class->dbic )->search(@_)
+    ];
+}
+
 =head3 save()
 
 Performs either an insert or an update for the model, depending on whether
