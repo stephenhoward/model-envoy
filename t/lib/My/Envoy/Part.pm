@@ -25,7 +25,6 @@ package My::Envoy::Part;
         isa => 'Maybe[My::Envoy::Widget]',
         traits => ['DBIC','Envoy'],
         rel => 'belongs_to',
-        coerce => 1,
     );
 
 1;

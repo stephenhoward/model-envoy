@@ -4,7 +4,163 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use List::AllUtils 'first_result';
 
-our $VERSION = '0.1.1';
+our $VERSION = '0.2.0';
+
+=head1 Model::Envoy
+
+A Moose Role that can be used to build a model layer which keeps business logic separate from your storage layer.
+
+=head2 Synopsis
+
+    package My::Model::Widget;
+
+        use Moose;
+        with 'Model::Envoy' => { storage => {
+            'DBIC' => {
+                schema => sub {
+                    My::DB->db_connect(...);
+                }
+            },
+        };
+
+        sub dbic { 'My::DB::Result::Widget' }
+
+
+        has 'id' => (
+            is => 'ro',
+            isa => 'Num',
+            traits => ['DBIC'],
+            primary_key => 1,
+
+        );
+
+        has 'name' => (
+            is => 'rw',
+            isa => 'Maybe[Str]',
+            traits => ['DBIC'],
+        );
+
+        has 'no_storage' => (
+            is => 'rw',
+            isa => 'Maybe[Str]',
+        );
+
+        has 'parts' => (
+            is => 'rw',
+            isa => 'ArrayRef[My::Model::Part]',
+            traits => ['DBIC','Envoy'],
+            rel => 'has_many',
+        );
+
+    package My::Models;
+
+    use Moose;
+    with 'Model::Envoy::Set' => { namespace => 'My::Envoy' };
+
+
+    ....then later...
+
+    my $widget = My::Models->m('Widget')->build({
+        id => 1
+        name => 'foo',
+        no_storage => 'bar',
+        parts => [
+            {
+                id => 2,
+                name => 'baz',
+            },
+        ],
+    });
+
+    $widget->name('renamed');
+    $widget->save;
+
+Mixing database logic with business rules is a common hazard when building an application's model layer. Beyond
+the violation of the ideal separation of concerns, it also ties a developer's hands when needing to transition
+between different storage mechanisms, or support more than one.
+
+Model::Envoy provides an Moose-based object layer to manage business logic, and a plugin system to add one or more
+persistence methods under the hood.
+
+=head2 Setting up storage
+
+Indicating which storage back ends you are using for your models is done when you include the role. It makes the most sense to
+do this in a base class which your models can inherit from:
+
+    package My::Model;
+
+        use Moose;
+        use My::DB;
+
+        my $schema;
+
+        with 'Model::Envoy' => { storage => {
+            'DBIC' => {
+                schema => sub {
+                    $schema ||= My::DB->db_connect(...);
+                }
+            },
+            ...
+        } };
+    
+    # then....
+
+    package My::Model::Widget;
+
+    use Moose;
+
+    extends 'My::Model'
+
+    ...
+
+=head2 Model attributes
+
+Model::Envoy classes use normal Moose attribute declarations. Depending on the storage layer plugin, they may add attribute traits or other methods
+your models need to implement to indicate how each attribute finds its way into and out of storage.
+
+=head3 Attribute Type Coercion with the 'Envoy' trait
+
+This trait is handy for class attributes that represent other Model::Envoy
+enabled classes (or arrays of them).  It will allow you to pass in hashrefs
+(or arrays of hashrefs) to those attributes and have them automagically elevated
+into an instance of the intended class.
+
+    has 'parts' => (
+        is => 'rw',
+        isa => 'ArrayRef[My::Model::Part]',
+        traits => ['Envoy'],
+    );
+
+=head2 Class Methods
+
+=head3 build()
+
+C<build> is a more flexible version of C<new>.  It can take a standard hashref of properties just as C<new> would, but it can also take
+classes that are used by your storage layer plugins and, if those plugins support this, convert them into an instance of your model object.
+
+=head2 Instance Methods
+
+=head3 save()
+
+Save the instance to your persistent storage layer.
+
+=head3 update($hashref)
+
+Given a supplied hashref of attributes, bulk update the attributes of your instance object.
+
+=head3 delete()
+
+Remove the instance from your persistent storage layer.
+
+=head3 dump()
+
+Provide an unblessed copy of the datastructure of your instance object.
+
+=head2 Aggregate methods
+
+For operations that fetch and search for one or more models, see C<Model::Envoy::Set>.
+
+=cut
 
 parameter storage => (
     isa      => 'HashRef',
@@ -52,94 +208,6 @@ sub get_storage {
     return $self->_storage_instance($package);
 }
 
-=head1 Model::Envoy
-
-A Moose Role that can be used to build a model layer that keeps business logic separate from your storage layer.
-
-=head2 Synopsis
-
-    package My::Envoy::Widget;
-
-        use Moose;
-        with 'Model::Envoy' => {
-            storage => {
-                'DBIC' => {
-                    schema => My::Schema->connect(...)
-                }
-            }
-        };
-
-        use My::DB;
-
-        sub dbic { 'My::DB::Result::Widget' }
-
-
-        has 'id' => (
-            is => 'ro',
-            isa => 'Num',
-            traits => ['DBIC'],
-            primary_key => 1,
-
-        );
-
-        has 'name' => (
-            is => 'rw',
-            isa => 'Maybe[Str]',
-            traits => ['DBIC'],
-        );
-
-        has 'no_storage' => (
-            is => 'rw',
-            isa => 'Maybe[Str]',
-        );
-
-        has 'parts' => (
-            is => 'rw',
-            isa => 'ArrayRef[My::Envoy::Part]',
-            traits => ['DBIC','Envoy'],
-            rel => 'has_many',
-        );
-
-    package My::Envoy::Models;
-
-    use Moose;
-    with 'Model::Envoy::Set';
-
-    sub namespace { 'My::Envoy' }
-
-
-    ....then later...
-
-    my $widget = My::Envoy::Models->m('Widget')->build({
-        id => 1
-        name => 'foo',
-        no_storage => 'bar',
-        parts => [
-            {
-                id => 2,
-                name => 'baz',
-            },
-        ],
-    })
-
-
-=head2 Traits
-
-=head3 DBIC
-
-See `Model::Envoy::Storage::DBIC`;
-
-=head3 Envoy
-
-This trait is handy for class attributes that represent other Model::Envoy
-enabled classes (or arrays of them).  It will allow you to pass in hashrefs
-(or arrays of hashrefs) to those attributes and have them automagically elevated
-into an instance of the intended class.
-
-=head2 Methods
-
-=cut
-
 sub build {
     my( $class, $params, $no_rel ) = @_;
 
@@ -166,13 +234,6 @@ sub build {
     }
 }
 
-=head3 save()
-
-Save the instance to your persistent storage layer.
-
-=cut
-
-
 sub save {
     my $self = shift;
 
@@ -180,12 +241,6 @@ sub save {
 
     return $self;
 }
-
-=head3 update($hashref)
-
-Given a supplied hashref of attributes, bulk update the attributes of your instance object.
-
-=cut
 
 sub update {
     my ( $self, $hashref ) = @_;
@@ -203,11 +258,6 @@ sub update {
     return $self;
 }
 
-=head3 delete()
-
-Remove the instance from your persistent storage layer.
-
-=cut
 
 sub delete {
     my ( $self ) = @_;
@@ -216,12 +266,6 @@ sub delete {
 
     return 1;
 }
-
-=head3 dump()
-
-Provide an unblessed copy of the datastructure of your instance object.
-
-=cut
 
 sub dump {
     my ( $self ) = @_;
@@ -233,6 +277,7 @@ sub dump {
         $self->_get_all_attributes
     };
 }
+
 
 sub _dump_property {
     my ( $self, $value ) = @_;

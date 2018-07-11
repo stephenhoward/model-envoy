@@ -4,25 +4,76 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use Moose::Util::TypeConstraints;
 
-our $VERSION = '0.1.1';
+our $VERSION = '0.2.0';
 
 =head1 Model::Envoy::Set
 
 A role for creating, finding and listing Model::Envoy based objects. Similar in
 philosophy to DBIx::Class::ResultSets.
 
-=head2 Required Methods
+=head2 Synopsis
 
-There is one method you will need to implement in a class that uses this role:
+    package My::Models;
 
-=head3 namespace()
+    use Moose;
+    with 'Model::Envoy::Set' => { namespace => 'My::Envoy' };
 
-This should return the parent namespace of the Model::Envoy based classes you are 
-creating.  For exampe, if you have My::Model::Foo and My::Model::Bar that both use
-the Model::Envoy role, then you could define My::Models to use Model::Envoy::Set and it's
-namespace method would return 'My::Model'.
+
+    ....then later...
+
+    my $widget = My::Models->m('Widget')->fetch( id => 2 );
+
+    $widget->name('renamed');
+    $widget->save;
+
+
+=head2 Configuration
+
+When incorporating this role into your class, you will need to specify the perl namespace where
+your model classes reside per the synopsis above. 
+
+=head2 Methods
+
+=head3 m($type)
+
+Returns an Envoy::Set of the specified $type. So for a class My::Model::Foo
+
+    my $set = My::Models->m('Foo');
+
+=head3 build(\%params)
+
+Create a new instance of the Model::Envoy based class referenced by the set:
+
+    my $instance = $set->build({
+        attribute => $value,
+        ...
+    });
+
+=head3 fetch(%params)
+
+Retrieve an object from storage
+
+    my $model = $set->fetch( id => 1 );
+
+=head3 list(%params)
+
+Query storage and return a list of objects that matched the query
+
+    my $models = $set->list(
+        color => 'green',
+        size  => 'small',
+        ...
+    );
+
+=head3 load_types(@names)
+
+For now Model::Envoy does not slurp all the classes in a certain namespace
+for use with $set->m().  Call load_types() at the start of your program instead:
+
+    My::Models->load_types( qw( Foo Bar Baz ) );
 
 =cut
+
 
 parameter namespace => (
     isa      => 'Str',
@@ -32,8 +83,6 @@ parameter namespace => (
 role {
 
     my $namespace = shift->namespace;
-
-warn $namespace;
 
     method '_namespace' => sub {
         $namespace;
@@ -46,17 +95,6 @@ has model_class => (
     required => 1,
 );
 
-
-=head2 Methods
-
-=head3 m($type)
-
-Returns an Envoy::Set of the specified $type. So for a class My::Model::Foo
-
-    my $set = My::Models->m('Foo');
-
-=cut
-
 sub m {
     my ( $class, $name ) = @_;
 
@@ -67,53 +105,11 @@ sub m {
     return $class->new( model_class => "$namespace\::$name" );
 }
 
-=head3 build(\%params)
-
-Create a new instance of the Model::Envoy based class referenced by the set:
-
-    my $instance = $set->build({
-        attribute => $value,
-        ...
-    });
-
-=cut
-
 sub build {
     my( $self, $params, $no_rel ) = @_;
 
     return $self->model_class->build($params,$no_rel);
-
-    if ( ! ref $params ) {
-        die "Cannot build a ". $self->model_class ." from '$params'";
-    }
-    elsif( ref $params eq 'HASH' ) {
-        return $self->model_class->new(%$params);
-    }
-    elsif( ref $params eq 'ARRAY' ) {
-        die "Cannot build a ". $self->model_class ." from an Array Ref";
-    }
-    elsif( blessed $params && $params->isa( $self->model_class ) ) {
-        return $params;
-    }
-    elsif( blessed $params && $params->isa( 'DBIx::Class::Core' ) ) {
-
-        my $type = ( ( ref $params ) =~ / ( [^:]+ ) $ /x )[0];
-
-        return $self->m( $type )->model_class->new_from_db($params, $no_rel);
-    }
-    else {
-        die "Cannot coerce a " . ( ref $params ) . " into a " . $self->model_class;
-    }
 }
-
-=head3 fetch(%params)
-
-Retrieve an object from storage
-
-    my $instance = $set->fetch( id => 1 );
-
-=cut
-
 sub fetch {
     my $self = shift;
 
@@ -121,33 +117,12 @@ sub fetch {
     return $self->model_class->_dispatch('fetch', @_ );
 }
 
-=head3 list(%params)
-
-Query storage and return a list of objects that matched the query
-
-    my $instances = $set->list(
-        color => 'green',
-        size  => 'small',
-        ...
-    );
-
-=cut
-
 sub list {
     my $self = shift;
 
     return $self->model_class->_dispatch('list', @_ );
 
 }
-
-=head3 load_types(@names)
-
-For now Model::Envoy does not slurp all the classes in a certain namespace
-for use with $set->m().  Call load_types() at the start of your program instead:
-
-    My::Models->load_types( qw( Foo Bar Baz ) );
-
-=cut
 
 sub load_types {
     my ( $self, @types ) = @_;

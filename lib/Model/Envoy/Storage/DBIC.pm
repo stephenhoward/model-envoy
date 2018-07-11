@@ -1,10 +1,35 @@
 package Model::Envoy::Storage::DBIC;
 
-our $VERSION = '0.1.1';
+our $VERSION = '0.2.0';
+
+use Moose;
+use Scalar::Util 'blessed';
+use MooseX::ClassAttribute;
+
+extends 'Model::Envoy::Storage';
 
 =head1 Model::Envoy::Storage::DBIC
 
 A Moose Role that adds a DBIx::Class persistence layer to your Moose class
+
+=head2 Configuration
+
+    with 'Model::Envoy' => { storage => {
+        'DBIC' => {
+            schema => sub {
+                ... connect to database here ...
+            }
+        }
+    } };
+
+The only configuration option for this plugin is a 'schema' method that returns a
+C<DBIx::Class:Schema> based object with an open connection to the database.
+
+=head3 C<dbic()>
+
+This is a method you will need to implement in each C<Model::Envoy> object
+that use this storage plugin. It should return the name of the DBIx::Class ResultClass
+that your Model uses for database storage.
 
 =head2 Traits
 
@@ -45,27 +70,42 @@ maps to the join table in the database).
 
 =back
 
-=head2 Required Methods
+=head2 Plugin Methods
 
-There are two methods you will need to implement in a class that uses this role:
+=head3 build( $dbic_result, [$no_rel] )
 
-=head3 dbic()
+Takes a DBIx::Class result object and, if it's class matches your class's dbic()
+method, attempts to build a new instance of your class based on the $dbic_result
+passed in.
 
-This should return the name of the DBIx::Class ResultClass that your Model
-uses for database storage.
+The `no_rel` boolean option prevents the creation process from traversing
+attributes marked as relationships, minimizing the amount of data pulled
+from the database and the number of new class instances created.
 
-=head3 schema()
+Returns the class instance if successful.
 
-This must return a DBIx::Class schema object for other methods to use when
-communicating with your database.
+=head3 save()
+
+Performs either an insert or an update for the model, depending on whether
+there is already a record for it in the database.
+
+Returns the calling object for convenient chaining.
+
+=head3 delete()
+
+Deletes the persistent copy of the current model from the database, if has
+been stored there.
+
+Returns nothing.
+
+=head3 in_storage()
+
+Uses DBIx::Class's internal mechanisms to determine if this model
+is tied to a record in the database.
+
+Returns a true value if it is, otherwise returns a false value.
 
 =cut
-
-use Moose;
-use Scalar::Util 'blessed';
-use MooseX::ClassAttribute;
-
-extends 'Model::Envoy::Storage';
 
 class_has 'schema' => (
     is       => 'rw',
@@ -83,11 +123,6 @@ has '_dbic_result',
         return $self->schema->resultset( $self->model->dbic )->new({});
     };
 
-=head2 Methods
-
-=head3 configure(\%conf)
-
-=cut
 
 sub configure {
     my ( $class, $conf ) = @_;
@@ -99,19 +134,6 @@ sub configure {
     $conf->{_configured} = 1;
 }
 
-=head3 build( $dbic_result, [$no_rel] )
-
-Takes a DBIx::Class result object and, if it's class matches your class's dbic()
-method, attempts to build a new instance of your class based on the $dbic_result
-passed in.
-
-The `no_rel` boolean option prevents the creation process from traversing
-attributes marked as relationships, minimizing the amount of data pulled
-from the database and the number of new class instances created.
-
-Returns the class instance if successful.
-
-=cut
 
 sub build {
     my ( $class, $model_class, $db_result, $no_rel ) = @_;
@@ -174,10 +196,10 @@ sub fetch {
         $params{$key} = $value;
     }
 
-    if ( my $result = ($self->schema->resultset( $self->model->dbic )
+    if ( my $result = ($self->schema->resultset( $model_class->dbic )
         ->search(\%params))[0] ) {
 
-        return $model_class->new_from_db($result);
+        return $model_class->build($result);
     }
 
     return undef;
@@ -192,15 +214,6 @@ sub list {
             $self->schema->resultset( $self->model_class->dbic )->search(@_)
     ];
 }
-
-=head3 save()
-
-Performs either an insert or an update for the model, depending on whether
-there is already a record for it in the database.
-
-Returns the calling object for convenient chaining.
-
-=cut
 
 sub save {
     my ( $self ) = @_;
@@ -255,15 +268,6 @@ sub _db_save_relationship {
     }
 }
 
-=head3 db_delete()
-
-Deletes the persistent copy of the current model from the database, if has
-been stored there.
-
-Returns nothing.
-
-=cut
-
 sub delete {
     my ( $self ) = @_;
 
@@ -273,15 +277,6 @@ sub delete {
 
     return;
 }
-
-=head3 in_storage()
-
-Uses DBIx::Class's internal mechanisms to determine if this model
-is tied to a record in the database.
-
-Returns a true value if it is, otherwise returns a false value.
-
-=cut
 
 sub in_storage {
     my ( $self ) = @_;

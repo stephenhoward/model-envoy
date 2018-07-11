@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-unlink '/tmp/dbic';
+unlink '/tmp/envoy';
 use lib 't/lib';
 
 use Test::More;
@@ -10,7 +10,7 @@ use Test::More;
 use My::Envoy::Widget;
 use My::Envoy::Part;
 
-my $schema = My::DB->db_connect('/tmp/dbic');
+my $schema = My::DB->db_connect('/tmp/envoy');
 $schema->storage->dbh->do( My::DB::Result::Widget->sql );
 $schema->storage->dbh->do( My::DB::Result::Part->sql );
 

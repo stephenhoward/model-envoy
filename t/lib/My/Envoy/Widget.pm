@@ -30,7 +30,6 @@ package My::Envoy::Widget;
         isa => 'ArrayRef[My::Envoy::Part]',
         traits => ['DBIC','Envoy'],
         rel => 'has_many',
-        coerce => 1,
     );
 
 1;

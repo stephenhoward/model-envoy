@@ -45,14 +45,14 @@ is_deeply( $model->dump, $params );
 $model->save();
 
 my @fetch_tests = (
-    { result => 'n',   query => [] },
-    { result => 'y',   query => [ 1 ]              },
-    { result => 'y',   query => [ id   => 1 ]      },
-    { result => 'y',   query => [ name => 'foo' ]  },
-    { result => 'y',   query => [ id   => 1, name => 'foo' ] },
-    { result => 'n',   query => [ id   => 2 ]      },
-    { result => 'n',   query => [ name => 'nope' ] },
-    { result => 'die', query => [ bad  => 'test' ] },
+    { result => 'n',   query => [],                 name => 'empty fetch' },
+    { result => 'y',   query => [ 1 ],              name => 'raw id' },
+    { result => 'y',   query => [ id   => 1 ],      name => 'id param' },
+    { result => 'y',   query => [ name => 'foo' ],  name => 'name param' },
+    { result => 'y',   query => [ id   => 1, name => 'foo' ], name => 'multi param' },
+    { result => 'n',   query => [ id   => 2 ],      name => 'missing id' },
+    { result => 'n',   query => [ name => 'nope' ], name => 'missing name' },
+    { result => 'die', query => [ bad  => 'test' ], name => 'bad query' },
 );
 
 my $db_params = { %$params };
@@ -60,28 +60,31 @@ delete $db_params->{no_storage};
 
 for my $test ( @fetch_tests ) {
 
-    if ( $test->{result} eq 'die' ) {
-        dies_ok { $set->fetch( @{$test->{query}} ) } 'bad field spec dies';
-    }
-    else {
+    subtest $test->{name} => sub {
 
-        my @found = $set->fetch( @{$test->{query}} );
-
-        if ( $test->{result} eq 'y' ) {
-            is( scalar( @found ) , 1, 'just 1 match' );
-            isa_ok( $found[0], 'My::Envoy::Widget');
-            is_deeply( $found[0]->dump, $db_params );
-        }
-        elsif ( $test->{result} eq 'n' ) {
-            is( scalar( @found ) , 1, 'just 1 match' );
-            ok( ! defined $found[0] , 'no match found for '. Dumper $test->{query} );
-
+        if ( $test->{result} eq 'die' ) {
+            dies_ok { $set->fetch( @{$test->{query}} ) } 'bad field spec dies';
         }
         else {
-            die "cannot interperet desired outcome for test result " . $test->{result};
-        }
-    }
 
+            my @found = $set->fetch( @{$test->{query}} );
+
+            if ( $test->{result} eq 'y' ) {
+                is( scalar( @found ) , 1, 'just 1 match' );
+                isa_ok( $found[0], 'My::Envoy::Widget');
+                is_deeply( $found[0]->dump, $db_params );
+            }
+            elsif ( $test->{result} eq 'n' ) {
+                is( scalar( @found ) , 1, 'just 1 match' );
+                ok( ! defined $found[0] , 'no match found for '. Dumper $test->{query} );
+
+            }
+            else {
+                die "cannot interperet desired outcome for test result " . $test->{result};
+            }
+        };
+
+    }
 }
 
 done_testing;
