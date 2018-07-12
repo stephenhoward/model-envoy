@@ -1,8 +1,6 @@
 
 use lib 't/lib';
 
-unlink '/tmp/envoy';
-
 use Test::More;
 use My::Envoy::Widget;
 use My::Envoy::Part;
@@ -61,6 +59,8 @@ subtest "Updating a Model" => sub {
 };
 
 $test->delete;
+
+My::DB->cleanup;
 
 done_testing;
 

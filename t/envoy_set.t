@@ -9,8 +9,6 @@ with 'Model::Envoy::Set' => { namespace => 'My::Envoy' };
 
 package main;
 
-unlink '/tmp/envoy';
-
 use Test::More;
 use Test::Exception;
 use My::Envoy::Widget;
@@ -86,5 +84,7 @@ for my $test ( @fetch_tests ) {
 
     }
 }
+
+My::DB->cleanup;
 
 done_testing;

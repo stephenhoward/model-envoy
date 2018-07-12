@@ -2,7 +2,6 @@
 use strict;
 use warnings;
 
-unlink '/tmp/envoy';
 use lib 't/lib';
 
 use Test::More;
@@ -80,6 +79,8 @@ subtest 'Model from DB Result' => sub {
     is( $test2->name, 'baz' );
 
 };
+
+My::DB->cleanup;
 
 done_testing;
 
