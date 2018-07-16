@@ -1,6 +1,6 @@
 package Model::Envoy::Storage::DBIC;
 
-our $VERSION = '0.2.0';
+our $VERSION = '0.2.2';
 
 use Moose;
 use Scalar::Util 'blessed';
@@ -87,7 +87,9 @@ Returns the class instance if successful.
 =head3 save()
 
 Performs either an insert or an update for the model, depending on whether
-there is already a record for it in the database.
+there is already a record for it in the database. This method will propogate
+changes from your DBIx::Class record back to your model, to account for DBIC
+plugins you may be using that fiddle with column values on insert or update.
 
 Returns the calling object for convenient chaining.
 
@@ -143,34 +145,9 @@ sub build {
             && blessed $db_result
             && $db_result->isa( $model_class->dbic );
 
-    my $data  = {};
-
-    my %relationships = map { $_->name => 1 } @{$class->_dbic_relationships($model_class)};
-
-    foreach my $attr ( grep { defined $db_result->$_ } map { $_->name } @{$class->_dbic_attrs($model_class)} ) {
-
-        next if $no_rel && exists $relationships{$attr};
-
-        if ( blessed $db_result->$attr && $db_result->$attr->isa('DBIx::Class::ResultSet') ) {
-
-            my $attribute  = $model_class->meta->find_attribute_by_name($attr);
-            my $class_attr = $attribute->meta->find_attribute_by_name('moose_class');
-            my $factory    = $class_attr ? $class_attr->get_value($attribute) : undef;
-
-            $factory ||= ( $attribute->type_constraint->name =~ / (?:ArrayRef|Maybe) \[ (.+?) \] /x )[0];
-
-            if ( $factory ) {
-
-                $data->{$attr} = [ map { $factory->build( $_, 1 ) } $db_result->$attr ];
-            }
-        }
-        else {
-            $data->{$attr} = $db_result->$attr;
-        }
-
-    }
-
+    my $data  = $class->_data_for_model( $model_class, $db_result, $no_rel );
     my $model = $model_class->new( %$data );
+
     $model->get_storage( __PACKAGE__ )->_dbic_result( $db_result );
 
     return $model;
@@ -240,9 +217,44 @@ sub save {
 
         $dbic_result->update;
 
+        # Finally, propogate any storage-layer changes back to model
+        $self->model->update( $self->_data_for_model( ref $self->model, $dbic_result ) );
+
     });
 
     return $self;
+}
+
+sub _data_for_model {
+    my ( $class, $model_class, $db_result, $no_rel ) = @_;
+
+    my $data      = {};
+    my %relationships = map { $_->name => 1 } @{$class->_dbic_relationships($model_class)};
+
+    foreach my $attr ( grep { defined $db_result->$_ } map { $_->name } @{$class->_dbic_attrs($model_class)} ) {
+
+        next if $no_rel && exists $relationships{$attr};
+
+        if ( blessed $db_result->$attr && $db_result->$attr->isa('DBIx::Class::ResultSet') ) {
+
+            my $attribute  = $model_class->meta->find_attribute_by_name($attr);
+            my $class_attr = $attribute->meta->find_attribute_by_name('moose_class');
+            my $factory    = $class_attr ? $class_attr->get_value($attribute) : undef;
+
+            $factory ||= ( $attribute->type_constraint->name =~ / (?:ArrayRef|Maybe) \[ (.+?) \] /x )[0];
+
+            if ( $factory ) {
+
+                $data->{$attr} = [ map { $factory->build( $_, 1 ) } $db_result->$attr ];
+            }
+        }
+        else {
+            $data->{$attr} = $db_result->$attr;
+        }
+
+    }
+
+    return $data;
 }
 
 sub _db_save_relationship {

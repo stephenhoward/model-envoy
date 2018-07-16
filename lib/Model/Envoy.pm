@@ -4,7 +4,7 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use List::AllUtils 'first_result';
 
-our $VERSION = '0.2.0';
+our $VERSION = '0.2.2';
 
 =head1 Model::Envoy
 
@@ -245,7 +245,7 @@ sub save {
 sub update {
     my ( $self, $hashref ) = @_;
 
-    foreach my $attr ( $self->_get_all_attributes ) {
+    foreach my $attr ( grep { $_->get_write_method } $self->_get_all_attributes ) {
 
         my $name = $attr->name;
 
