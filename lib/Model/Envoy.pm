@@ -4,7 +4,7 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use List::AllUtils 'first_result';
 
-our $VERSION = '0.2.2';
+our $VERSION = '0.2.4';
 
 =head1 Model::Envoy
 

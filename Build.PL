@@ -20,5 +20,6 @@ my $build = Module::Build->new(
     test_requires    => {
         'Test::More'        => '>= 1.302085',
         'Test::Exception'   => '>= 0.43',
+        'SQL::Translator'   => '>= 0.11018',
     },
 )->create_build_script;

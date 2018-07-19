@@ -1,6 +1,6 @@
 package Model::Envoy::Storage::DBIC;
 
-our $VERSION = '0.2.2';
+our $VERSION = '0.2.3';
 
 use Moose;
 use Scalar::Util 'blessed';
