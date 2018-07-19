@@ -1,4 +1,4 @@
-package My::DB::Result::Part;
+package My::DB::Result::DynamicPart;
 
 use Moose;
 
@@ -13,6 +13,6 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key('id');
 
-__PACKAGE__->belongs_to( 'widget', 'My::DB::Result::Widget', 'widget_id', );
+__PACKAGE__->belongs_to( 'widget', 'My::DB::Result::DynamicWidget', 'widget_id', );
 
 1;

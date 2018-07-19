@@ -110,8 +110,8 @@ Returns a true value if it is, otherwise returns a false value.
 =cut
 
 class_has 'schema' => (
-    is       => 'rw',
-    isa      => 'DBIx::Class::Schema',
+    is  => 'rw',
+    isa => 'DBIx::Class::Schema',
 );
 
 # The actual ResultClass for the model object is stored here:
@@ -218,7 +218,7 @@ sub save {
         $dbic_result->update;
 
         # Finally, propogate any storage-layer changes back to model
-        $self->model->update( $self->_data_for_model( ref $self->model, $dbic_result ) );
+        $self->update_model( $dbic_result );
 
     });
 
@@ -236,7 +236,6 @@ sub _data_for_model {
         next if $no_rel && exists $relationships{$attr};
 
         if ( blessed $db_result->$attr && $db_result->$attr->isa('DBIx::Class::ResultSet') ) {
-
             my $attribute  = $model_class->meta->find_attribute_by_name($attr);
             my $class_attr = $attribute->meta->find_attribute_by_name('moose_class');
             my $factory    = $class_attr ? $class_attr->get_value($attribute) : undef;
@@ -264,20 +263,38 @@ sub _db_save_relationship {
 
     my $name  = $attr->name;
     my $type  = $attr->meta->get_attribute('rel')->get_value($attr);
-    my $value = $self->_value_to_db( $self->model->$name );
+    my $value = $self->model->$name;
 
     if ( $type eq 'many_to_many' ) {
-        my $setter = 'set_' . $name;
-        $dbic_result->$setter( $value );
+        my $setter  = 'set_' . $name;
+        my $records = $self->_value_to_db( $value );
+        $dbic_result->$setter( $self->_value_to_db( $value ) );
+
+        for ( my $i=0; $i < @$value; $i++ ) {
+            $value->[$i]->get_storage('DBIC')->update_model($records->[$i]);
+        }
     }
     elsif ( $type eq 'has_many' ) {
 
-        $dbic_result->find_or_create_related( $name => $_ )
-            foreach ( map { { $_->get_columns } } @$value );
+        foreach my $model ( @$value ) {
+            my $result = $self->_value_to_db( $model );
+
+            my $data = { $result->get_columns };
+            $result = $dbic_result->update_or_create_related( $name => {
+                map  { $_ => $data->{$_} }
+                grep { defined $data->{$_} } 
+                keys %$data
+            } );
+
+            $model->get_storage('DBIC')->update_model($result);
+        }
     }
-    else {
-        $dbic_result->set_from_related( $name => $value );
-    }
+}
+
+sub update_model {
+    my ( $self, $dbic_result ) = @_;
+
+    $self->model->update( $self->_data_for_model( ref $self->model, $dbic_result ) );
 }
 
 sub delete {
@@ -296,15 +313,30 @@ sub in_storage {
     return $self->_dbic_result->in_storage;
 }
 
+class_has '_cached_dbic_attrs' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    default => sub { {} },
+);
+
 sub _dbic_attrs {
     my ( $self, $model ) = @_;
 
     $model //= $self->model;
 
-    return [
-        grep { $_->does('DBIC') }
-        $model->meta->get_all_attributes
-    ];
+    my $model_class = ref $model;
+    $model_class ||= $model;
+
+    if ( ! $self->_cached_dbic_attrs->{ $model_class } ) {
+
+        $self->_cached_dbic_attrs->{ $model_class } = [
+            grep { $_->does('DBIC') }
+            $model->meta->get_all_attributes
+        ];
+    }
+
+    return $self->_cached_dbic_attrs->{ $model_class }
+
 }
 
 sub _dbic_columns {
@@ -329,10 +361,22 @@ sub _dbic_relationships {
     ];
 }
 
+sub _dbic_fk_relationships {
+    my ( $self, $model ) = @_;
+
+    return [
+        grep {
+            my $type  = $_->meta->get_attribute('rel')->get_value($_);
+            $type eq 'belongs_to' ? 1 : 0;
+        }
+        @{$self->_dbic_relationships($model)}
+    ];
+}
+
 sub _populate_dbic_result {
     my ( $self ) = @_;
 
-    for my $attr ( @{$self->_dbic_columns} ) {
+    for my $attr ( @{$self->_dbic_columns}, @{$self->_dbic_fk_relationships} ) {
 
         my $name  = $attr->name;
         my $value = $self->_value_to_db( $self->model->$name );

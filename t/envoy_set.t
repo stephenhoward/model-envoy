@@ -17,8 +17,7 @@ use My::DB::Result::Widget;
 use Data::Dumper; 
 
 my $schema = My::DB->db_connect('/tmp/envoy');
-$schema->storage->dbh->do( My::DB::Result::Widget->sql );
-$schema->storage->dbh->do( My::DB::Result::Part->sql );
+$schema->deploy;
 
 my $set = My::Envoy::Models->m('Widget');
 

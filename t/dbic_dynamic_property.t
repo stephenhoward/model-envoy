@@ -9,7 +9,7 @@ use Test::More;
 use My::Envoy::DynamicWidget;
 
 my $schema = My::DB->db_connect('/tmp/envoy');
-$schema->storage->dbh->do( My::DB::Result::DynamicWidget->sql );
+$schema->deploy;
 
 
 subtest "Saving with value defined" => sub {
@@ -18,7 +18,7 @@ subtest "Saving with value defined" => sub {
         id         => 1,
         name       => 'foo',
     );
-    my $dbic = $test->get_storage('Model::Envoy::Storage::DBIC');
+    my $dbic = $test->get_storage('DBIC');
 
     note "inspect before save...";
 
@@ -41,7 +41,7 @@ subtest "Saving with value undefined" => sub {
     my $test = new My::Envoy::DynamicWidget(
         id         => 2,
     );
-    my $dbic = $test->get_storage('Model::Envoy::Storage::DBIC');
+    my $dbic = $test->get_storage('DBIC');
 
     note "inspect before save...";
 

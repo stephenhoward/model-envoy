@@ -6,8 +6,7 @@ use My::Envoy::Widget;
 use My::Envoy::Part;
 
 my $schema = My::DB->db_connect('/tmp/envoy');
-$schema->storage->dbh->do( My::DB::Result::Widget->sql );
-$schema->storage->dbh->do( My::DB::Result::Part->sql );
+$schema->deploy;
 
 my $test = new My::Envoy::Widget(
     id         => 1,

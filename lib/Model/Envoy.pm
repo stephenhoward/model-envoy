@@ -156,6 +156,17 @@ Remove the instance from your persistent storage layer.
 
 Provide an unblessed copy of the datastructure of your instance object.
 
+=head3 get_storage('Plugin')
+
+Given the namespace of a storage plugin, return the instance of it that's backing the current object.  If the plugin is in the
+C<Model::Envoy::Storage::> namespace, it can be abbreviated:
+
+    $model->get_storage('DBIC')  # looks for Model::Envoy::Storage::DBIC
+
+otherwise, prefix your plugin name with a C<+> to get something outside of the default namespace:
+
+    $model->get_storage('+My::Storage::WhatsIt');
+
 =head2 Aggregate methods
 
 For operations that fetch and search for one or more models, see C<Model::Envoy::Set>.
@@ -176,13 +187,11 @@ role {
 
     while ( my ( $package, $conf ) = each %$storage ) {
 
-        my $role = $package =~ $abs_module_prefix
-            ? do { $package =~ s/$abs_module_prefix//; $package }
-            : 'Model::Envoy::Storage::' . $package;
+        my $role = _resolve_namespace($package);
 
-            use_module( $role );
+        use_module( $role );
 
-            $plugins{$role} = $conf;
+        $plugins{$role} = $conf;
     }
 
     has _storage => (
@@ -201,6 +210,16 @@ role {
         \%plugins;
     };
 };
+
+sub _resolve_namespace {
+    my ( $namespace ) = @_;
+
+    $namespace =~ s/^Model::Envoy::Storage:://;
+
+    return $namespace =~ $abs_module_prefix
+        ? do { $namespace =~ s/$abs_module_prefix//; $namespace }
+        : 'Model::Envoy::Storage::' . $namespace;
+}
 
 sub get_storage {
     my ( $self, $package ) = @_;
@@ -319,6 +338,8 @@ sub _class_dispatch {
 
 sub _storage_instance {
     my ( $self, $package ) = @_;
+
+    $package = _resolve_namespace($package);
 
     if ( ! $self->_storage->{$package} ) {
             my $conf = $self->storage_plugins->{$package};

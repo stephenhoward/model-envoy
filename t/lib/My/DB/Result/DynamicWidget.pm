@@ -10,6 +10,10 @@ sub insert {
         $self->name('name set');
     }
 
+    if ( ! defined $self->id ) {
+        $self->id( 42 );
+    }
+
     return $self->next::method(@_);
     
 }
@@ -28,12 +32,9 @@ __PACKAGE__->table('widgets');
 __PACKAGE__->add_columns(
 
     'id'      => { data_type => 'integer', is_nullable => 0, },
-    'name'    => { data_type => 'text',    },
+    'name'    => { data_type => 'text',    is_nullable => 1, },
+
 );
 __PACKAGE__->set_primary_key('id');
-
-sub sql {
-    return 'create table widgets ( id integer not null primary key, name varchar)';
-}
 
 1;
