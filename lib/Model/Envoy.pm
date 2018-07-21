@@ -4,7 +4,7 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use List::AllUtils 'first_result';
 
-our $VERSION = '0.2.4';
+our $VERSION = '0.3.0';
 
 =head1 Model::Envoy
 
@@ -224,7 +224,12 @@ sub _resolve_namespace {
 sub get_storage {
     my ( $self, $package ) = @_;
 
-    return $self->_storage_instance($package);
+    if ( ! ref $self ) {
+        return $self->_get_configured_storage_class($package);
+    }
+    else {
+        return $self->_storage_instance($package);
+    }
 }
 
 sub build {
@@ -339,17 +344,27 @@ sub _class_dispatch {
 sub _storage_instance {
     my ( $self, $package ) = @_;
 
-    $package = _resolve_namespace($package);
+    $package = $self->_get_configured_storage_class($package);
+    my $conf = $self->storage_plugins->{$package};
 
-    if ( ! $self->_storage->{$package} ) {
-            my $conf = $self->storage_plugins->{$package};
-            if ( ! $conf->{_configured} ) {
-                $package->configure($conf);
-            }
-            $self->_storage->{$package} = $package->new( %$conf, model => $self );
-    }
+    $self->_storage->{$package} = $package->new( %$conf, model => $self )
+        unless $self->_storage->{$package};
 
     return $self->_storage->{$package};
+}
+
+sub _get_configured_storage_class {
+
+    my ( $self, $package ) = @_;
+
+    $package = _resolve_namespace($package);
+
+    my $conf = $self->storage_plugins->{$package};
+    if ( ! $conf->{_configured} ) {
+        $package->configure($conf);
+    }
+
+    return $package;
 }
 
 package Model::Envoy::Meta::Attribute::Trait::Envoy;

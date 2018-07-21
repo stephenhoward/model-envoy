@@ -4,7 +4,7 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use Moose::Util::TypeConstraints;
 
-our $VERSION = '0.2.0';
+our $VERSION = '0.3.0';
 
 =head1 Model::Envoy::Set
 
@@ -122,6 +122,12 @@ sub list {
 
     return $self->model_class->_dispatch('list', @_ );
 
+}
+
+sub get_storage {
+    my $self = shift;
+
+    $self->model_class->get_storage(@_);
 }
 
 sub load_types {
