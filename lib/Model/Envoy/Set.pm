@@ -4,7 +4,7 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use Moose::Util::TypeConstraints;
 
-our $VERSION = '0.2.0';
+our $VERSION = '0.3.0';
 
 =head1 Model::Envoy::Set
 
@@ -65,6 +65,11 @@ Query storage and return a list of objects that matched the query
         ...
     );
 
+=head3 get_storage($storage_package)
+
+Passes back the storage plugin specified by C<$storage_package> being used by the set's model type.
+Follows the same namespace resolution process as the C<Model::Envoy> method of the same name.
+
 =head3 load_types(@names)
 
 For now Model::Envoy does not slurp all the classes in a certain namespace
@@ -122,6 +127,12 @@ sub list {
 
     return $self->model_class->_dispatch('list', @_ );
 
+}
+
+sub get_storage {
+    my $self = shift;
+
+    $self->model_class->get_storage(@_);
 }
 
 sub load_types {

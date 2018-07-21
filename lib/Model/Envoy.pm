@@ -4,7 +4,7 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use List::AllUtils 'first_result';
 
-our $VERSION = '0.2.4';
+our $VERSION = '0.3.0';
 
 =head1 Model::Envoy
 
@@ -138,6 +138,11 @@ into an instance of the intended class.
 C<build> is a more flexible version of C<new>.  It can take a standard hashref of properties just as C<new> would, but it can also take
 classes that are used by your storage layer plugins and, if those plugins support this, convert them into an instance of your model object.
 
+=head3 get_storage($storage_package)
+
+Passes back the storage plugin specified by C<$storage_package> being used by the class. Follows the same namespace resolution
+process as the instance method below.
+
 =head2 Instance Methods
 
 =head3 save()
@@ -224,7 +229,12 @@ sub _resolve_namespace {
 sub get_storage {
     my ( $self, $package ) = @_;
 
-    return $self->_storage_instance($package);
+    if ( ! ref $self ) {
+        return $self->_get_configured_storage_class($package);
+    }
+    else {
+        return $self->_storage_instance($package);
+    }
 }
 
 sub build {
@@ -339,17 +349,27 @@ sub _class_dispatch {
 sub _storage_instance {
     my ( $self, $package ) = @_;
 
-    $package = _resolve_namespace($package);
+    $package = $self->_get_configured_storage_class($package);
+    my $conf = $self->storage_plugins->{$package};
 
-    if ( ! $self->_storage->{$package} ) {
-            my $conf = $self->storage_plugins->{$package};
-            if ( ! $conf->{_configured} ) {
-                $package->configure($conf);
-            }
-            $self->_storage->{$package} = $package->new( %$conf, model => $self );
-    }
+    $self->_storage->{$package} = $package->new( %$conf, model => $self )
+        unless $self->_storage->{$package};
 
     return $self->_storage->{$package};
+}
+
+sub _get_configured_storage_class {
+
+    my ( $self, $package ) = @_;
+
+    $package = _resolve_namespace($package);
+
+    my $conf = $self->storage_plugins->{$package};
+    if ( ! $conf->{_configured} ) {
+        $package->configure($conf);
+    }
+
+    return $package;
 }
 
 package Model::Envoy::Meta::Attribute::Trait::Envoy;

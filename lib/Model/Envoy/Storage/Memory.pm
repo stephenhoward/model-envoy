@@ -1,6 +1,6 @@
 package Model::Envoy::Storage::Memory;
 
-our $VERSION = '0.1';
+our $VERSION = '0.1.0';
 use Moose;
 use Scalar::Util 'blessed';
 use MooseX::ClassAttribute;
