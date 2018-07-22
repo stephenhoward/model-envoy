@@ -377,6 +377,7 @@ use Moose::Role;
 Moose::Util::meta_attribute_alias('Envoy');
 
 use Moose::Util::TypeConstraints;
+use List::AllUtils 'any';
 
 has moose_class => (
     is  => 'ro',
@@ -412,7 +413,7 @@ sub _install_types {
         $self->_coerce_class($options->{isa});
     }
 
-    $options->{coerce} = 1;
+    $options->{coerce} = 1 unless $options->{moose_class} && any { $options->{moose_class} eq $_ } qw( HashRef ArrayRef );
 
     return $self->$orig($name,$options);
 }

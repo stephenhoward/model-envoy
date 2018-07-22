@@ -11,13 +11,14 @@ package main;
 
 use Test::More;
 use Test::Exception;
-use My::Envoy::Widget;
-use My::Envoy::Part;
 use My::DB::Result::Widget;
-use Data::Dumper; 
+use Data::Dumper;
+use My::DB;
 
 my $schema = My::DB->db_connect('/tmp/envoy');
 $schema->deploy;
+
+My::Envoy::Models->load_types( qw( Widget Part ) );
 
 my $set = My::Envoy::Models->m('Widget');
 
