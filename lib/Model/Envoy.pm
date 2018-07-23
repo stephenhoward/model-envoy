@@ -138,7 +138,7 @@ into an instance of the intended class.
 C<build> is a more flexible version of C<new>.  It can take a standard hashref of properties just as C<new> would, but it can also take
 classes that are used by your storage layer plugins and, if those plugins support this, convert them into an instance of your model object.
 
-=head3 get_storage($storage_package)
+=head3 get_storage('Plugin')
 
 Passes back the storage plugin specified by C<$storage_package> being used by the class. Follows the same namespace resolution
 process as the instance method below.
@@ -172,7 +172,7 @@ otherwise, prefix your plugin name with a C<+> to get something outside of the d
 
     $model->get_storage('+My::Storage::WhatsIt');
 
-=head2 in_storage('Plugin')
+=head3 in_storage('Plugin')
 
 Returns true if the storage plugin reports your model is saved in its storage mechanism.
 
