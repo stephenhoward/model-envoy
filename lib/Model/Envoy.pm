@@ -4,7 +4,7 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use List::AllUtils 'first_result';
 
-our $VERSION = '0.3.0';
+our $VERSION = '0.3.2';
 
 =head1 Model::Envoy
 
@@ -172,6 +172,10 @@ otherwise, prefix your plugin name with a C<+> to get something outside of the d
 
     $model->get_storage('+My::Storage::WhatsIt');
 
+=head2 in_storage('Plugin')
+
+Returns true if the storage plugin reports your model is saved in its storage mechanism.
+
 =head2 Aggregate methods
 
 For operations that fetch and search for one or more models, see C<Model::Envoy::Set>.
@@ -235,6 +239,17 @@ sub get_storage {
     else {
         return $self->_storage_instance($package);
     }
+}
+
+sub in_storage {
+    my ( $self, $package ) = @_;
+
+    if( my $storage = $self->get_storage($package) ) {
+
+        return $storage->in_storage;
+    }
+
+    die "model does not use '$package' to persist data";
 }
 
 sub build {

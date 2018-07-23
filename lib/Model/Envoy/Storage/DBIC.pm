@@ -1,6 +1,6 @@
 package Model::Envoy::Storage::DBIC;
 
-our $VERSION = '0.2.3';
+our $VERSION = '0.3.2';
 
 use Moose;
 use Scalar::Util 'blessed';
@@ -186,13 +186,13 @@ sub list {
     my $self = shift;
     my $model_class = shift;
 
-    my %conditions = ref $_[0] eq 'HASH'
-        ? %{$_[0]}
-        : @_;
+    my $conditions = ref $_[0]
+        ? $_[0]
+        : { @_ };
 
     return [
         map { $model_class->build($_) }
-            $self->schema->resultset( $model_class->dbic )->search( \%conditions )
+            $self->schema->resultset( $model_class->dbic )->search( $conditions )
     ];
 }
 

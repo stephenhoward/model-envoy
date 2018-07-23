@@ -3,6 +3,7 @@ use lib 't/lib';
 
 use Test::More;
 use My::Envoy::Widget;
+use Test::Exception;
 use My::Envoy::Part;
 
 my $schema = My::DB->db_connect('/tmp/envoy');
@@ -55,6 +56,10 @@ subtest "Updating a Model" => sub {
     is( $test->parts->[1]->name, 'buzz', "Related Model name" );
 
     $test->save;
+
+    ok( $test->in_storage('DBIC') );
+    ok( $test->in_storage('Memory') );
+    dies_ok( sub { $test->in_storage('NotAThing') } );
 };
 
 $test->delete;
