@@ -186,9 +186,13 @@ sub list {
     my $self = shift;
     my $model_class = shift;
 
+    my %conditions = ref $_[0] eq 'HASH'
+        ? %{$_[0]}
+        : @_;
+
     return [
-        map { $model_class->new_from_db($_) }
-            $self->schema->resultset( $self->model_class->dbic )->search(@_)
+        map { $model_class->build($_) }
+            $self->schema->resultset( $model_class->dbic )->search( \%conditions )
     ];
 }
 
