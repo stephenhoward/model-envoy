@@ -130,6 +130,11 @@ into an instance of the intended class.
 `build` is a more flexible version of `new`.  It can take a standard hashref of properties just as `new` would, but it can also take
 classes that are used by your storage layer plugins and, if those plugins support this, convert them into an instance of your model object.
 
+### get\_storage('Plugin')
+
+Passes back the storage plugin specified by `$storage_package` being used by the class. Follows the same namespace resolution
+process as the instance method below.
+
 ## Instance Methods
 
 ### save()
@@ -147,6 +152,21 @@ Remove the instance from your persistent storage layer.
 ### dump()
 
 Provide an unblessed copy of the datastructure of your instance object.
+
+### get\_storage('Plugin')
+
+Given the namespace of a storage plugin, return the instance of it that's backing the current object.  If the plugin is in the
+`Model::Envoy::Storage::` namespace, it can be abbreviated:
+
+    $model->get_storage('DBIC')  # looks for Model::Envoy::Storage::DBIC
+
+otherwise, prefix your plugin name with a `+` to get something outside of the default namespace:
+
+    $model->get_storage('+My::Storage::WhatsIt');
+
+### in\_storage('Plugin')
+
+Returns true if the storage plugin reports your model is saved in its storage mechanism.
 
 ## Aggregate methods
 
