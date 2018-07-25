@@ -58,7 +58,6 @@ subtest "Updating a Model" => sub {
     $test->save;
 
     ok( $test->in_storage('DBIC') );
-    ok( $test->in_storage('Memory') );
     dies_ok( sub { $test->in_storage('NotAThing') } );
 };
 

@@ -10,8 +10,7 @@ package My::Envoy::Base;
             schema => sub {
                 $schema ||= My::DB->db_connect();
             }
-        },
-        'Memory' => {},
+        }
     } };
 
 1;
