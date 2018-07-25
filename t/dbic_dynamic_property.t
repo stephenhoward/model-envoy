@@ -8,7 +8,7 @@ use Test::More;
 
 use My::Envoy::DynamicWidget;
 
-my $schema = My::DB->db_connect('/tmp/envoy');
+my $schema = My::DB->db_connect;
 $schema->deploy;
 
 
@@ -58,8 +58,6 @@ subtest "Saving with value undefined" => sub {
     is( $dbic->_dbic_result->id, 2, 'check db id');
     is( $dbic->_dbic_result->name, 'name set', 'check db name');
 };
-
-My::DB->cleanup;
 
 done_testing;
 

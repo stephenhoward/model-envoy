@@ -209,6 +209,10 @@ sub save {
         if ( $dbic_result->in_storage ) {
             $dbic_result->update;
         }
+        elsif ( my $copy = $dbic_result->get_from_storage ) {
+            $dbic_result->in_storage(1);
+            $dbic_result->update();
+        }
         else {
             $dbic_result->insert;
         }

@@ -15,7 +15,7 @@ use My::DB::Result::Widget;
 use Data::Dumper;
 use My::DB;
 
-my $schema = My::DB->db_connect('/tmp/envoy');
+my $schema = My::DB->db_connect;
 $schema->deploy;
 
 My::Envoy::Models->load_types( qw( Widget Part ) );
@@ -84,7 +84,5 @@ for my $test ( @fetch_tests ) {
 
     }
 }
-
-My::DB->cleanup;
 
 done_testing;

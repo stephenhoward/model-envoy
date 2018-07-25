@@ -1,4 +1,3 @@
-
 package My::NoEnvoyAttrs;
 
 use Moose;

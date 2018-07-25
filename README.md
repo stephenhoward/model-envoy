@@ -123,6 +123,20 @@ into an instance of the intended class.
         traits => ['Envoy'],
     );
 
+## Adding caching
+
+The role inclusion can also specify a cache plugin. These operate just like storage plugins, but are checked before your storage plugins on fetches,
+and updated with results from your storage plugins on a cache miss.
+
+        with 'Model::Envoy' => {
+            storage => {
+                'DBIC' => { ... },
+            },
+            cache => {
+                'Memory' => { ... }
+            }
+        };
+
 ## Class Methods
 
 ### build()
@@ -132,8 +146,13 @@ classes that are used by your storage layer plugins and, if those plugins suppor
 
 ### get\_storage('Plugin')
 
-Passes back the storage plugin specified by `$storage_package` being used by the class. Follows the same namespace resolution
+Passes back the storage plugin specified by `Plugin` being used by the class. Follows the same namespace resolution
 process as the instance method below.
+
+### get\_cache('Plugin')
+
+Passes back the cache plugin specified by `Plugin` being used by the class. Follows the same namespace resolution
+process as the `get_storage` instance method below.
 
 ## Instance Methods
 
@@ -164,9 +183,17 @@ otherwise, prefix your plugin name with a `+` to get something outside of the de
 
     $model->get_storage('+My::Storage::WhatsIt');
 
+### get\_cache('Plugin')
+
+Works just like `get_storage` but looks for a cache plugin instead of a storage plugin
+
 ### in\_storage('Plugin')
 
 Returns true if the storage plugin reports your model is saved in its storage mechanism.
+
+### in\_cache('Plugin')
+
+Returns true if the cache plugin reports your model is saved in its storage mechanism.
 
 ## Aggregate methods
 

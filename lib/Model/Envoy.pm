@@ -4,7 +4,7 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use List::AllUtils 'first_result';
 
-our $VERSION = '0.3.2';
+our $VERSION = '0.4.0';
 
 =head1 Model::Envoy
 
@@ -131,6 +131,20 @@ into an instance of the intended class.
         traits => ['Envoy'],
     );
 
+=head2 Adding caching
+
+The role inclusion can also specify a cache plugin. These operate just like storage plugins, but are checked before your storage plugins on fetches,
+and updated with results from your storage plugins on a cache miss.
+
+        with 'Model::Envoy' => {
+            storage => {
+                'DBIC' => { ... },
+            },
+            cache => {
+                'Memory' => { ... }
+            }
+        };
+
 =head2 Class Methods
 
 =head3 build()
@@ -140,8 +154,13 @@ classes that are used by your storage layer plugins and, if those plugins suppor
 
 =head3 get_storage('Plugin')
 
-Passes back the storage plugin specified by C<$storage_package> being used by the class. Follows the same namespace resolution
+Passes back the storage plugin specified by C<Plugin> being used by the class. Follows the same namespace resolution
 process as the instance method below.
+
+=head3 get_cache('Plugin')
+
+Passes back the cache plugin specified by C<Plugin> being used by the class. Follows the same namespace resolution
+process as the C<get_storage> instance method below.
 
 =head2 Instance Methods
 
@@ -172,9 +191,17 @@ otherwise, prefix your plugin name with a C<+> to get something outside of the d
 
     $model->get_storage('+My::Storage::WhatsIt');
 
+=head3 get_cache('Plugin')
+
+Works just like C<get_storage> but looks for a cache plugin instead of a storage plugin
+
 =head3 in_storage('Plugin')
 
 Returns true if the storage plugin reports your model is saved in its storage mechanism.
+
+=head3 in_cache('Plugin')
+
+Returns true if the cache plugin reports your model is saved in its storage mechanism.
 
 =head2 Aggregate methods
 
@@ -187,37 +214,56 @@ parameter storage => (
     required => 1,
 );
 
+parameter cache => (
+    isa      => 'HashRef',
+    required => 0,
+);
+
 my $abs_module_prefix = qr/^\+/;
 
 role {
+    my $p = shift;
 
-    my $storage = shift->storage;
     my %plugins;
+    my @stores = qw( storage cache );
 
-    while ( my ( $package, $conf ) = each %$storage ) {
+    for my $store ( @stores ) {
 
-        my $role = _resolve_namespace($package);
+        if ( my $storage = $p->$store ) {
 
-        use_module( $role );
+            while ( my ( $package, $conf ) = each %$storage ) {
 
-        $plugins{$role} = $conf;
+                my $role = _resolve_namespace($package);
+
+                use_module( $role );
+
+                $plugins{$store}{$role} = $conf;
+            }
+        }
     }
 
-    has _storage => (
+    has '_storage' => (
         isa => 'HashRef',
         is  => 'ro',
         default => sub {
 
-            my $self = shift;
+            my $self      = shift;
+            my $instances = {};
 
-            return { map { $_ => undef } keys %plugins }
+            for my $store ( @stores ) {
+                next unless $plugins{$store};
+                $instances->{$store} = { map { $_ => undef } keys $plugins{$store} };
+            }
+
+            return $instances;
         },
     );
 
-    method 'storage_plugins' => sub {
+    method '_plugins' => sub {
 
         \%plugins;
     };
+
 };
 
 sub _resolve_namespace {
@@ -234,14 +280,36 @@ sub get_storage {
     my ( $self, $package ) = @_;
 
     if ( ! ref $self ) {
-        return $self->_get_configured_storage_class($package);
+        return $self->_get_configured_plugin_class('storage', $package);
     }
     else {
-        return $self->_storage_instance($package);
+        return $self->_plugin_instance('storage',$package);
+    }
+}
+
+sub get_cache {
+    my ( $self, $package ) = @_;
+
+    if ( ! ref $self ) {
+        return $self->_get_configured_plugin_class('cache', $package);
+    }
+    else {
+        return $self->_plugin_instance('cache',$package);
     }
 }
 
 sub in_storage {
+    my ( $self, $package ) = @_;
+
+    if( my $storage = $self->get_storage($package) ) {
+
+        return $storage->in_storage;
+    }
+
+    die "model does not use '$package' to persist data";
+}
+
+sub in_cache {
     my ( $self, $package ) = @_;
 
     if( my $storage = $self->get_storage($package) ) {
@@ -348,38 +416,56 @@ sub _dispatch {
 
     return $self->_class_dispatch($method,@params) unless ref $self;
 
-    for my $package ( keys %{$self->_storage} ) {
-        $self->_storage_instance($package)->$method();
+    for my $store ( qw( storage cache ) ) {
+        next unless $self->_storage->{$store};
+
+        for my $package ( keys %{$self->_storage->{$store}} ) {
+            $self->_plugin_instance($store,$package)->$method();
+        }
     }
 }
 
 sub _class_dispatch {
     my ( $self, $method, @params ) = @_;
 
-    return
-        first_result { $_->$method( $self, @params ) }
-        keys %{$self->storage_plugins};
+    my $result =
+        first_result { $self->_get_configured_plugin_class('cache',$_)->$method( $self, @params ) }
+        keys %{$self->_plugins->{cache}};
+
+    return $result if $result;
+
+    $result =
+        first_result { $self->_get_configured_plugin_class('storage',$_)->$method( $self, @params ) }
+        keys %{$self->_plugins->{storage}};
+
+    if ( $result ) {
+        for my $plugin ( keys %{$self->_plugins->{cache}} ) {
+            $result->get_cache($plugin)->save();
+        }
+
+    }
+
+    return $result;
 }
 
-sub _storage_instance {
-    my ( $self, $package ) = @_;
+sub _plugin_instance {
+    my ( $self, $store, $package ) = @_;
 
-    $package = $self->_get_configured_storage_class($package);
-    my $conf = $self->storage_plugins->{$package};
+    $package = $self->_get_configured_plugin_class($store,$package);
+    my $conf = $self->_plugins->{$store}{$package};
 
-    $self->_storage->{$package} = $package->new( %$conf, model => $self )
-        unless $self->_storage->{$package};
+    $self->_storage->{$store}{$package} = $package->new( %$conf, model => $self )
+        unless $self->_storage->{$store}{$package};
 
-    return $self->_storage->{$package};
+    return $self->_storage->{$store}{$package};
 }
 
-sub _get_configured_storage_class {
-
-    my ( $self, $package ) = @_;
+sub _get_configured_plugin_class {
+    my ( $self, $store, $package ) = @_;
 
     $package = _resolve_namespace($package);
 
-    my $conf = $self->storage_plugins->{$package};
+    my $conf = $self->_plugins->{$store}{$package};
     if ( ! $conf->{_configured} ) {
         $package->configure($conf);
     }

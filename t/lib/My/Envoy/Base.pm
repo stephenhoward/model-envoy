@@ -8,7 +8,7 @@ package My::Envoy::Base;
     with 'Model::Envoy' => { storage => {
         'DBIC' => {
             schema => sub {
-                $schema ||= My::DB->db_connect('/tmp/envoy');
+                $schema ||= My::DB->db_connect();
             }
         },
         'Memory' => {},

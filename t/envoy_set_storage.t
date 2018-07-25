@@ -14,14 +14,12 @@ use My::Envoy::Widget;
 use My::Envoy::Part;
 use My::DB;
 
-my $schema = My::DB->db_connect('/tmp/envoy');
+my $schema = My::DB->db_connect;
 $schema->deploy;
 
 my $set = My::Envoy::Models->m('Widget');
 
 is( $set->get_storage('DBIC'), 'Model::Envoy::Storage::DBIC');
 isa_ok( $set->get_storage('DBIC')->schema, 'DBIx::Class::Schema');
-
-My::DB->cleanup;
 
 done_testing;

@@ -6,7 +6,7 @@ use My::Envoy::Widget;
 use Test::Exception;
 use My::Envoy::Part;
 
-my $schema = My::DB->db_connect('/tmp/envoy');
+my $schema = My::DB->db_connect;
 $schema->deploy;
 
 my $test = new My::Envoy::Widget(
@@ -63,8 +63,6 @@ subtest "Updating a Model" => sub {
 };
 
 $test->delete;
-
-My::DB->cleanup;
 
 done_testing;
 

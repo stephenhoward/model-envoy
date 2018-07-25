@@ -9,7 +9,7 @@ use Test::More;
 use My::Envoy::Widget;
 use My::Envoy::Part;
 
-my $schema = My::DB->db_connect('/tmp/envoy');
+my $schema = My::DB->db_connect;
 $schema->deploy;
 
 my $test = new My::Envoy::Widget(
@@ -78,8 +78,6 @@ subtest 'Model from DB Result' => sub {
     is( $test2->name, 'baz' );
 
 };
-
-My::DB->cleanup;
 
 done_testing;
 

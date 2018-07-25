@@ -11,7 +11,6 @@ package main;
 
 use Test::More;
 use Test::Exception;
-use My::DB;
 
 My::Envoy::Models->load_types( qw( Widget Part ) );
 
@@ -38,7 +37,5 @@ while( my ( $name, $lives ) = each %tries ) {
 
 dies_ok(  sub { My::Envoy::Models->load_types( keys %tries )                     }, "mixed bag dies" );
 lives_ok( sub { My::Envoy::Models->load_types( grep { $tries{$_} } keys %tries ) }, "known good lives" );
-
-My::DB->cleanup;
 
 done_testing;

@@ -1,6 +1,6 @@
 package Model::Envoy::Storage::Memory;
 
-our $VERSION = '0.1.0';
+our $VERSION = '0.1.1';
 use Moose;
 use Scalar::Util 'blessed';
 use MooseX::ClassAttribute;
@@ -33,12 +33,15 @@ sub fetch {
 
         $params{id} = $id;
     }
+    else {
+        %params = @_;
+    }
 
     my $id = $params{id};
 
     return undef unless $id;
 
-    return exists $self->store->{$id} ? $model_class->build( $self->store->{id} ) : undef;
+    return exists $self->store->{$id} ? $model_class->build( $self->store->{$id} ) : undef;
 }
 
 sub list {

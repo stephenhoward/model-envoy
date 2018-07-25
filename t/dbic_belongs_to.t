@@ -9,7 +9,7 @@ use Test::More;
 use My::Envoy::DynamicWidget;
 use My::Envoy::DynamicPart;
 
-my $schema = My::DB->db_connect('/tmp/envoy');
+my $schema = My::DB->db_connect;
 $schema->deploy;
 
 my $test = new My::Envoy::DynamicPart(
@@ -31,8 +31,6 @@ subtest "Saving a Model" => sub {
     is( $test->widget->id, '42');
     isa_ok( $test->widget, 'My::Envoy::DynamicWidget' );
 };
-
-My::DB->cleanup;
 
 done_testing;
 
