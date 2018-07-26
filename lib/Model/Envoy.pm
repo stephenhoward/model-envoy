@@ -4,7 +4,7 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use List::AllUtils 'first_result';
 
-our $VERSION = '0.4.0';
+our $VERSION = '0.4.1';
 
 =head1 Model::Envoy
 
@@ -252,7 +252,7 @@ role {
 
             for my $store ( @stores ) {
                 next unless $plugins{$store};
-                $instances->{$store} = { map { $_ => undef } keys $plugins{$store} };
+                $instances->{$store} = { map { $_ => undef } keys %{$plugins{$store}} };
             }
 
             return $instances;
