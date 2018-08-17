@@ -4,7 +4,7 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use List::AllUtils 'first_result';
 
-our $VERSION = '0.4.1';
+our $VERSION = '0.4.2';
 
 =head1 Model::Envoy
 
@@ -438,7 +438,7 @@ sub _class_dispatch {
         first_result { $self->_get_configured_plugin_class('storage',$_)->$method( $self, @params ) }
         keys %{$self->_plugins->{storage}};
 
-    if ( $result ) {
+    if ( blessed $result && $result->can('does') && $result->does('Model::Envoy') ) {
         for my $plugin ( keys %{$self->_plugins->{cache}} ) {
             $result->get_cache($plugin)->save();
         }
