@@ -209,6 +209,8 @@ sub save {
         if ( $dbic_result->in_storage ) {
             $dbic_result->update;
         }
+        # get_from_storage can be noisy due to
+        # https://rt.cpan.org/Public/Bug/Display.html?id=104839
         elsif ( my $copy = $dbic_result->get_from_storage ) {
             $dbic_result->in_storage(1);
             $dbic_result->update();
@@ -287,6 +289,8 @@ sub _db_save_relationship {
         foreach my $model ( @$value ) {
             my $result = $self->_value_to_db( $model );
 
+            # update_or_create_related can be noisy due to
+            # https://rt.cpan.org/Public/Bug/Display.html?id=104839
             my $data = { $result->get_columns };
             $result = $dbic_result->update_or_create_related( $name => {
                 map  { $_ => $data->{$_} }
