@@ -21,7 +21,7 @@ A Moose Role that can be used to build a model layer which keeps business logic 
         has 'id' => (
             is => 'ro',
             isa => 'Num',
-            traits => ['DBIC'],
+            traits => ['Envoy','DBIC'],
             primary_key => 1,
 
         );
@@ -29,19 +29,25 @@ A Moose Role that can be used to build a model layer which keeps business logic 
         has 'name' => (
             is => 'rw',
             isa => 'Maybe[Str]',
-            traits => ['DBIC'],
+            traits => ['Envoy','DBIC'],
         );
 
         has 'no_storage' => (
             is => 'rw',
             isa => 'Maybe[Str]',
+            traits => ['Envoy'],
         );
 
         has 'parts' => (
             is => 'rw',
             isa => 'ArrayRef[My::Model::Part]',
-            traits => ['DBIC','Envoy'],
+            traits => ['Envoy','DBIC'],
             rel => 'has_many',
+        );
+
+        has 'envoy_ignores_me' => (
+            is => 'rw',
+            isa => 'Str',
         );
 
     package My::Models;
@@ -62,6 +68,7 @@ A Moose Role that can be used to build a model layer which keeps business logic 
                 name => 'baz',
             },
         ],
+        envoy_ignores_me => 'hi there',
     });
 
     $widget->name('renamed');
@@ -108,11 +115,13 @@ do this in a base class which your models can inherit from:
 ## Model attributes
 
 Model::Envoy classes use normal Moose attribute declarations. Depending on the storage layer plugin, they may add attribute traits or other methods
-your models need to implement to indicate how each attribute finds its way into and out of storage.
+your models need to implement to indicate how each attribute finds its way into and out of storage. All attributes that you want Model::Envoy to manage
+do need to have at least this one trait specified:
 
-### Attribute Type Coercion with the 'Envoy' trait
+### The 'Envoy' trait
 
-This trait is handy for class attributes that represent other Model::Envoy
+This trait indicates an attribute is part of your model's data, rather than being a secondary or utility attribute (such as a handle to a logging utility).
+It also provides some automatic coercion for class attributes that represent other Model::Envoy
 enabled classes (or arrays of them).  It will allow you to pass in hashrefs
 (or arrays of hashrefs) to those attributes and have them automagically elevated
 into an instance of the intended class.
@@ -170,7 +179,9 @@ Remove the instance from your persistent storage layer.
 
 ### dump()
 
-Provide an unblessed copy of the datastructure of your instance object.
+Provide an unblessed copy of the datastructure of your instance object. If any attributes are an instance of a Model::Envoy-using class (or an array of same),
+they will be recursively dumped. Other blessed objects will return undef unless they have a `stringify` or `to_string` method, in which case those will be
+used to represent the object.
 
 ### get\_storage('Plugin')
 
