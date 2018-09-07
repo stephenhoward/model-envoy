@@ -4,7 +4,7 @@ use MooseX::Role::Parameterized;
 use Module::Runtime 'use_module';
 use List::AllUtils qw( first first_result );
 
-our $VERSION = '0.5.1';
+our $VERSION = '0.5.2';
 
 =head1 Model::Envoy
 
@@ -413,7 +413,7 @@ sub _dump_property {
 
     return $value->dump if $value->can('does') && $value->does('Model::Envoy');
 
-    if ( my $method = first { $value->can($_) } qw( stringify to_string ) ) {
+    if ( my $method = first { $value->can($_) } qw( stringify to_string as_string to_str ) ) {
 
         return $value->$method;
     }
