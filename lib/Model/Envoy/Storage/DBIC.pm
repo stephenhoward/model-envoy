@@ -1,6 +1,6 @@
 package Model::Envoy::Storage::DBIC;
 
-our $VERSION = '0.3.2';
+our $VERSION = '0.5.3';
 
 use Moose;
 use Scalar::Util 'blessed';
@@ -23,7 +23,8 @@ A Moose Role that adds a DBIx::Class persistence layer to your Moose class
     } };
 
 The only configuration option for this plugin is a 'schema' method that returns a
-C<DBIx::Class:Schema> based object with an open connection to the database.
+C<DBIx::Class:Schema> based object with an open connection to the database. This method
+will be passed a reference to your class as its only argument.
 
 =head3 C<dbic()>
 
@@ -127,10 +128,10 @@ has '_dbic_result',
 
 
 sub configure {
-    my ( $class, $conf ) = @_;
+    my ( $plugin_class, $envoy_class, $conf ) = @_;
 
-    $class->schema(
-        ref $conf->{schema} eq 'CODE' ? $conf->{schema}->() : $conf->{schema}
+    $plugin_class->schema(
+        ref $conf->{schema} eq 'CODE' ? $conf->{schema}->($envoy_class) : $conf->{schema}
     );
 
     $conf->{_configured} = 1;

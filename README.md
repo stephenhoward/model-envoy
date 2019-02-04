@@ -10,6 +10,7 @@ A Moose Role that can be used to build a model layer which keeps business logic 
         with 'Model::Envoy' => { storage => {
             'DBIC' => {
                 schema => sub {
+                    my ( $class ) = @_;
                     My::DB->db_connect(...);
                 }
             },
@@ -96,6 +97,7 @@ do this in a base class which your models can inherit from:
         with 'Model::Envoy' => { storage => {
             'DBIC' => {
                 schema => sub {
+                    my ( $class ) = @_;
                     $schema ||= My::DB->db_connect(...);
                 }
             },
